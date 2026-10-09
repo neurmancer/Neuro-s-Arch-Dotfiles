@@ -2,7 +2,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Services.Pam
-import QtMultimedia
 
 ShellRoot {
     id: shellRoot
@@ -62,6 +61,36 @@ ShellRoot {
         }
     }
 
+    // This UI deliberately uses only QtQuick so broken theme/media imports cannot
+    // remove the password entry from an already acquired session lock.
+    Component {
+        id: emergencyAuth
+        Rectangle {
+            color: "#101018"
+            Column {
+                anchors.centerIn: parent
+                spacing: 20
+                Text { text: "Unlock session"; color: "white"; font.pixelSize: 28 }
+                Rectangle {
+                    width: 360; height: 52; color: "#303040"
+                    TextInput {
+                        id: password
+                        anchors.fill: parent; anchors.margins: 12
+                        color: "white"; echoMode: TextInput.Password; focus: true
+                        enabled: !pam.active
+                        onAccepted: { shellRoot.doAuth(shellRoot.currentUser, text); text = "" }
+                    }
+                }
+                Text { id: feedback; text: "Enter your password and press Enter"; color: "white" }
+                Connections {
+                    target: shellRoot
+                    function onLoginFail() { feedback.text = "Authentication failed. Try again."; password.forceActiveFocus() }
+                }
+            }
+            Component.onCompleted: password.forceActiveFocus()
+        }
+    }
+
     Component {
         id: themeComponent
         Loader {
@@ -74,6 +103,8 @@ ShellRoot {
             onStatusChanged: {
                 if (status === Loader.Error) {
                     console.error("FAILED to load theme:", source)
+                    source = ""
+                    sourceComponent = emergencyAuth
                 }
             }
         }

@@ -1,7 +1,7 @@
 #!/bin/sh
 # this fires from my pacman hook right after an install. the hook feeds the package names in on
 # stdin (thats what NeedsTargets does), i grab em and poke the running HUD over its socket so the
-# install bar pops up. runs as root cuz its a hook, but root can still write my user socket so np.
+# install bar pops up. Install a root-owned copy under /usr/lib/cyberarch.
 
 pkgs=$(cat | awk 'NF')
 [ -z "$pkgs" ] && exit 0
@@ -31,6 +31,7 @@ msg="pkg-installed ${title}|${info}"
 
 for s in /run/user/*/astal/cyberpunk.sock; do
     [ -S "$s" ] || continue
-    printf '%s' "$msg" | socat - "UNIX-CONNECT:$s" >/dev/null 2>&1
+    printf '%s' "$msg" | timeout -k 1 2 socat -T 1 - "UNIX-CONNECT:$s" >/dev/null 2>&1 &
 done
+wait
 exit 0

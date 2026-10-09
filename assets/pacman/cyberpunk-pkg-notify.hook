@@ -6,5 +6,5 @@ Target = *
 [Action]
 Description = Cyberpunk HUD: notify on package install
 When = PostTransaction
-Exec = __THEME__/scripts/pkg-notify
+Exec = /usr/lib/cyberarch/pkg-notify
 NeedsTargets

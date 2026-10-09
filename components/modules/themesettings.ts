@@ -5,7 +5,7 @@ import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import GdkPixbuf from "gi://GdkPixbuf"
 import { Window, DrawingArea, EventBox, Keymode, Layer, Anchor } from "./widget.ts"
-import { PALETTES, getPaletteName, applyPalette, saveUserColors, setUserColor, getUserColor, rgbToHex, hasAlpha, getUserAlpha, setUserAlpha, USER, onColorChange } from "./colors.ts"
+import { PALETTES, getActivePalette, syncTheme, applyPalette, saveUserColors, setUserColor, getUserColor, rgbToHex, hasAlpha, getUserAlpha, setUserAlpha, USER, onColorChange } from "./colors.ts"
 import { closeAllModals } from "./cmodal.ts"
 import { TITLE, MONO, CYAN, ACC, HEADER, txt, drawGlass, Cairo, ch } from "./glass.ts"
 import { ICONF } from "./fonts.ts"
@@ -34,7 +34,7 @@ const releaseKeys = () => sh(`hyprctl dispatch 'hl.dsp.submap("reset")'`)
 export let selPalette = "NETWATCH"
 
 export const readTune = () => {
-    selPalette = getPaletteName()
+    selPalette = getActivePalette()
     wallPickerOpen = false
     wallPickerSel = null
     wallPickerEntries = []
@@ -42,7 +42,12 @@ export const readTune = () => {
     wallScroll = 0
 }
 
-export const applyColors = (name: string) => { closeAllModals(); applyPalette(name); saveUserColors(); selPalette = name; sh(`"${CYBER_DIR}/scripts/theme-wallpaper" "${name}"`) }
+export const applyColors = (name: string): Promise<void> => {
+    closeAllModals(); applyPalette(name); saveUserColors(); selPalette = name
+    const job = syncTheme(name, true)
+    job.catch(e => { print("[theme] application failed:", e); execAsync(["notify-send", "Theme application failed", String(e)]).catch(print) })
+    return job
+}
 
 export const TABS: [string, string][] = [
     ["CONFIGURATION", "anim"], ["COLORS", "colors"], ["KEYBINDS", "keybinds"],
@@ -1673,7 +1678,7 @@ export const drawWallRing = (ctx, g, x, y, w) => {
 
     const frame = WALL_FRAME()
     const tok = WALL_TOKEN()
-    const natural = getPaletteName() === "NETWATCH"
+    const natural = getActivePalette() === "NETWATCH"
     const HOVER_A = 0.5
 
     if (surf) {

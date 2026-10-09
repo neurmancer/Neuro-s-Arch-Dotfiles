@@ -10,6 +10,9 @@ export const HOME = GLib.get_home_dir()
 export const CYBER_DIR = SRC
 export const COMPONENTS_DIR = `${CYBER_DIR}/components`
 export const USER_DIR = `${GLib.get_user_config_dir()}/cyberarch`
+const session = (GLib.getenv("HYPRLAND_INSTANCE_SIGNATURE") || GLib.getenv("WAYLAND_DISPLAY") || "default").replace(/[^a-zA-Z0-9_.-]/g, "_")
+export const RUNTIME_DIR = `${GLib.get_user_runtime_dir()}/cyberarch-${session}`
+if (GLib.mkdir_with_parents(RUNTIME_DIR, 0o700) !== 0) throw new Error("Cannot create session runtime directory")
 export const USER_LUA = `${HOME}/.config/hypr/user.lua`
 export const WALLPAPERS_PATH = `${HOME}/Pictures/Wallpapers`
 export const WALLPAPER_LUA = `${USER_DIR}/wallpaper.lua`

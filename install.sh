@@ -807,10 +807,12 @@ if [ "$ans" = "y" ] || [ "$ans" = "Y" ]; then
   HOOKSRC="$THEME/assets/pacman/cyberpunk-pkg-notify.hook"
   HOOKDST="/etc/pacman.d/hooks/cyberpunk-pkg-notify.hook"
   if [ -f "$HOOKSRC" ]; then
-    if sed "s|__THEME__|$CANON|g" "$HOOKSRC" | sudo tee "$HOOKDST" >/dev/null 2>&1; then
+    if sudo install -d -m 755 /usr/lib/cyberarch /etc/pacman.d/hooks &&
+       sudo install -o root -g root -m 755 "$THEME/scripts/pkg-notify" /usr/lib/cyberarch/pkg-notify &&
+       sudo install -o root -g root -m 644 "$HOOKSRC" "$HOOKDST"; then
       ok "install-notification hook → $HOOKDST"
     else
-      warn "hook not installed (needs root) |::| run: sed \"s|__THEME__|$CANON|g\" \"$HOOKSRC\" | sudo tee \"$HOOKDST\""
+      warn "hook not installed; re-run the installer to retry the root-owned installation"
     fi
   else
     warn "hook template missing at $HOOKSRC"
@@ -1506,16 +1508,21 @@ else
         "Then re-run:  ./install.sh"
     else
       gt_runs "$GTBIN" && step "rebuilding GPU Terminal to match this theme..." || step "building GPU Terminal with GPU shader support..."
-      if cargo install rioterm --version "$GTVER" --force --locked --features wgpu 2>&1 | tee /tmp/.gt-cargo.log; test "${PIPESTATUS[0]}" -eq 0; then
-        :
-      else
-        warn "cargo build failed |::| the wgpu build errors were printed above."
-        warn "a previous plain build may still be sitting in ~/.cargo/bin/rio — it has no shader chain."
-        rm -f "$GTBIN"
-        if gt_runs "$GTBIN"; then
-          warn "cargo left a binary behind despite the failure |::| testing it for shader support."
+      GT_STAGE="$(mktemp -d)" || exit 1
+      if cargo install rioterm --root "$GT_STAGE" --version "$GTVER" --force --locked --features wgpu && gt_runs "$GT_STAGE/bin/rio"; then
+        mkdir -p "$(dirname "$GTBIN")"
+        # Stage on the destination filesystem; rename only a validated executable.
+        GT_NEW="$(mktemp "${GTBIN}.XXXXXX")" || exit 1
+        if install -m 755 "$GT_STAGE/bin/rio" "$GT_NEW"; then
+          mv -f "$GT_NEW" "$GTBIN"
+        else
+          rm -f "$GT_NEW"
+          warn "could not install Rio; retaining the existing terminal"
         fi
+      else
+        warn "Rio build failed; retaining the existing terminal"
       fi
+      rm -rf "$GT_STAGE"
       GT_ALT="$(command -v rio 2>/dev/null || true)"
       GT_PICK=""
       if gt_runs "$GTBIN" && gt_has_gpu "$GTBIN"; then GT_PICK="$GTBIN"

@@ -3,6 +3,9 @@
 # FIX FOR THE AWWW ISSUES
 ## waits for the wayland socket, then starts awww daemon b4 setting the image
 set -u
+. "$(dirname "$(readlink -f "$0")")/runtime.sh"
+exec 9>"$CYBER_RUNTIME/wallpaper.lock"
+flock -w 30 9 || exit 1
 wallpapers_path="${HOME}/Pictures/Wallpapers"
 wallpaper_lua="${XDG_CONFIG_HOME:-${HOME}/.config}/cyberarch/wallpaper.lua"
 wallpaper="${wallpapers_path}/netwatch/main.mp4"
@@ -89,9 +92,9 @@ case "${wallpaper##*.}" in
         if command -v mpvpaper >/dev/null 2>&1; then
             old_mpvp="$(pgrep -x mpvpaper 2>/dev/null || true)"
             old_awww="$(pgrep -x awww-daemon 2>/dev/null || true)"
-            sock="/tmp/cyberwall-$$.sock"
+            sock="$CYBER_RUNTIME/cyberwall-$$.sock"
             rm -f "$sock"
-            mpvpaper -o "no-audio --really-quiet --loop-file=inf --keepaspect=no --hwdec=auto-safe --gpu-shader-cache=no --input-ipc-server=$sock" ALL "$wallpaper" >>"${HOME}/.cache/cyberpunk-mpvpaper.log" 2>&1 &
+            mpvpaper -o "no-audio --really-quiet --loop-file=inf --keepaspect=no --hwdec=auto-safe --gpu-shader-cache=no --input-ipc-server=$sock" ALL "$wallpaper" 9>&- >>"${HOME}/.cache/cyberpunk-mpvpaper.log" 2>&1 &
             new_pid=$!
             if command -v socat >/dev/null 2>&1; then
                 for _ in $(seq 1 200); do
@@ -125,7 +128,7 @@ for _ in $(seq 1 80); do
     fi
 
     if ! pgrep -u "$(id -u)" -x awww-daemon >/dev/null 2>&1; then
-        awww-daemon --no-cache >>"${HOME}/.cache/cyberpunk-awww-daemon.log" 2>&1 &
+        awww-daemon --no-cache 9>&- >>"${HOME}/.cache/cyberpunk-awww-daemon.log" 2>&1 &
     fi
     sleep 0.05
 done

@@ -1,3 +1,4 @@
+import { RUNTIME_DIR } from "../../env.ts"
 import { Window, DrawingArea, EventBox, activeMonitor } from "./widget.ts"
 import { Anchor, Layer, Exclusivity, Keymode } from "./widget.ts"
 import { interval, timeout, execAsync } from "astal"
@@ -28,7 +29,7 @@ const beep = () => { if (!sndOn("sndWheel")) return; const t = Date.now(); if (t
 
 
 
-const MENU_LOCK = "/tmp/kiroshi_menu.lock"
+const MENU_LOCK = `${RUNTIME_DIR}/kiroshi_menu.lock`
 const startMenuLoop = () => {
     if (!sndOn("sndWheel")) return
     const p = sndAt("sndWheelActive", "kiroshi_menu.ogg")

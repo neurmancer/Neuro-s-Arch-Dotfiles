@@ -1,3 +1,4 @@
+import { RUNTIME_DIR } from "../../env.ts"
 
 
 import { Window, DrawingArea, EventBox, activeMonitor } from "./widget.ts"
@@ -1070,7 +1071,7 @@ const BatCtrl = () => {
 const SYSY: [number, number, number] = USER.amber
 const SYSC: [number, number, number] = USER.dock
 const SYSR: [number, number, number] = USER.overlay
-const SYS_LOCK = "/tmp/cyber-sysmon.lock"
+const SYS_LOCK = `${RUNTIME_DIR}/cyber-sysmon.lock`
 const SYS_AUDIO = `${CYBER_DIR}/assets/audio`
 const sysAt = (key, file) => sndFile(key, `${SYS_AUDIO}/${file}`)
 const sysPlay = (p, vol, mvol) => sh(`setsid -f sh -c "play -q -v ${vol} '${p}' 2>/dev/null || mpv --no-video --really-quiet --volume=${mvol} '${p}' 2>/dev/null" >/dev/null 2>&1`)

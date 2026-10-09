@@ -1,3 +1,4 @@
+import { RUNTIME_DIR } from "../../env.ts"
 import { App, Window, Box, DrawingArea, activeMonitor, monitorAtPoint } from "./widget.ts"
 import { Anchor, Layer, Exclusivity } from "./widget.ts"
 import { interval, timeout, execAsync } from "astal"
@@ -345,7 +346,7 @@ export const WsAnimWindow = () => {
          win: null, area, prog: 0, timer: null, seed: 0, start: 0, busy: false,
          cachePix: null, frames: [], small: null, pixbuf: null, lastCap: 0, capPending: false,
          x, y, w, h, hw: Math.max(1, w >> 1), hh: Math.max(1, h >> 1),
-         tmp: `/tmp/aug_ws_frame_${i}.ppm`, cache: `/tmp/aug_ws_cache_${i}.ppm`,
+         tmp: `${RUNTIME_DIR}/aug_ws_frame_${i}.ppm`, cache: `${RUNTIME_DIR}/aug_ws_cache_${i}.ppm`,
          S: scaleOf(mon),
      }
      area.set_size_request(w, h)

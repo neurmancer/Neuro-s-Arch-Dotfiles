@@ -1,3 +1,4 @@
+import { RUNTIME_DIR } from "../../env.ts"
 import { Box, DrawingArea, EventBox } from "./widget.ts"
 import Gdk from "gi://Gdk?version=3.0"
 import { interval, timeout, execAsync } from "astal"
@@ -36,7 +37,7 @@ const VERT_TILES = [
  { key: "music", icon: "", label: "", sc: "O", eq: true, state: () => pollState("playerctl -a status 2>/dev/null").then(o => /playing/i.test(o)) },
 ]
 const HORIZ_TILES = [
- { key: "rec", icon: "", label: "", sc: "R", state: () => shBool("[ -f /tmp/hypr-record.pid ] && echo 1 || echo 0") },
+ { key: "rec", icon: "", label: "", sc: "R", state: () => shBool(`[ -f "${RUNTIME_DIR}/recording" ] && echo 1 || echo 0`) },
  { key: "wifi", icon: "", label: "", sc: "N", state: () => shBool("nmcli radio wifi") },
  { key: "bt", icon: "", label: "", sc: "B", state: () => shBool("bluetoothctl show | grep Powered") },
  { key: "pwr", icon: "", label: "", sc: "P" },

@@ -91,7 +91,7 @@ export const NEON: Record<string, RGB> = {
     radioctl: [94, 244, 248],
 }
 
-export type PaletteName = "NETWATCH" | "BLADE" | "KITTY" | "BLOODMOON" | "ARCTIC" | "SYNTHWAVE" | "JOHNNY" | "GHOST"
+export type PaletteName = "NETWATCH" | "BLADE" | "KITTY" | "BLOODMOON" | "ARCTIC" | "SYNTHWAVE" | "JOHNNY" | "GHOST" | "NSD"
 
 export const PALETTES: Record<string, Partial<Record<string, RGB>>> = {
     NETWATCH: {
@@ -349,6 +349,89 @@ export const PALETTES: Record<string, Partial<Record<string, RGB>>> = {
     },
 }
 
+// NSD: primary purple #C170FF, accent green #00EB74, supporting blue #5A96FF.
+PALETTES.NSD = {
+    red: [193, 112, 255],
+    cyan: [0, 235, 116],
+    magenta: [193, 112, 255],
+    green: [0, 235, 116],
+    amber: [0, 235, 116],
+    blue: [90, 150, 255],
+    white: [225, 232, 250],
+    dim: [145, 153, 180],
+    grid: [30, 38, 64],
+    dock: [193, 112, 255],
+    press: [0, 235, 116],
+    badge: [193, 112, 255],
+    stamina: [0, 235, 116],
+    ram: [90, 150, 255],
+    netinfo: [0, 235, 116],
+    cpu: [193, 112, 255],
+    notifred: [193, 112, 255],
+    notifyel: [0, 235, 116],
+    notifcyn: [193, 112, 255],
+    goldf: [36, 25, 55],
+    goldd: [36, 25, 55],
+    notifgrey: [225, 232, 250],
+    glyphcol: [193, 112, 255],
+    msggrey: [145, 153, 180],
+    dimred: [36, 25, 55],
+    appsred: [193, 112, 255],
+    hudcyan: [193, 112, 255],
+    darkred: [36, 25, 55],
+    notifbadge: [0, 235, 116],
+    aurgreen: [0, 235, 116],
+    aurbrt: [166, 255, 207],
+    aurblack: [12, 16, 28],
+    aurwht: [225, 232, 250],
+    f25: [193, 112, 255],
+    overlay: [193, 112, 255],
+    sysveil: [193, 112, 255],
+    pure: [225, 232, 250],
+    glassacc: [193, 112, 255],
+    modalbg: [12, 16, 28],
+    modalhov: [0, 235, 116],
+    wheelbg: [12, 16, 28],
+    wheelfg: [193, 112, 255],
+    xpbar: [193, 112, 255],
+    dockv: [193, 112, 255],
+    dockh: [193, 112, 255],
+    dockvh: [0, 235, 116],
+    dockhh: [0, 235, 116],
+    launchico: [193, 112, 255],
+    launchlbl: [0, 235, 116],
+    mapclock: [193, 112, 255],
+    mapcity: [0, 235, 116],
+    mapwx: [0, 235, 116],
+    mapaccent: [193, 112, 255],
+    maptile: [193, 112, 255],
+    netchip: [0, 235, 116],
+    netdown: [193, 112, 255],
+    netup: [0, 235, 116],
+    mktacc: [193, 112, 255],
+    mkthov: [0, 235, 116],
+    aurbg: [12, 16, 28],
+    aurfg: [225, 232, 250],
+    auricon: [193, 112, 255],
+    aurlbl: [0, 235, 116],
+    aurtitle: [225, 232, 250],
+    aurline: [0, 235, 116],
+    notifphone: [193, 112, 255],
+    notifmail: [193, 112, 255],
+    notifheads: [0, 235, 116],
+    notiftitle: [225, 232, 250],
+    notiffg: [225, 232, 250],
+    notifbg: [12, 16, 28],
+    notiflbl: [0, 235, 116],
+    radiotitle: [193, 112, 255],
+    radiohdrbg: [12, 16, 28],
+    radioacc: [0, 235, 116],
+    radiovol: [0, 235, 116],
+    radiotrkfg: [193, 112, 255],
+    radiotrkbg: [12, 16, 28],
+    radioctl: [0, 235, 116],
+}
+
 export const USER: Record<string, [number, number, number]> = {}
 for (const k of Object.keys(NEON)) USER[k] = f(NEON[k])
 
@@ -415,6 +498,7 @@ const applyDeriveTable = (pinned: Record<string, Partial<Record<string, RGB>>> =
 
 export const imgTint = { value: null as RGB | null, strength: 0 }
 const IMG_TINT: Record<string, [RGB, number]> = {
+    NSD: [[193, 112, 255], 0.65],
     ARCTIC: [[255, 255, 255], 1],
     BLADE: [[81, 37, 11], 0.62],
     KITTY: [[255, 20, 147], 0.8],
@@ -491,6 +575,7 @@ const updateGlassMode = (name: string) => { glassMode.value = GLASS_MODE[name] ?
 type MenuBg = { bg: RGB; bgA: number; fog: RGB | null; fogA: number }
 const MENU_BG_DEF: MenuBg = { bg: [2, 1, 4], bgA: 0.5, fog: [255, 42, 58], fogA: 0.18 }
 const MENU_BG: Record<string, MenuBg> = {
+    NSD: { bg: [7, 9, 18], bgA: 0.55, fog: [193, 112, 255], fogA: 0.18 },
     NETWATCH: { bg: [2, 1, 4], bgA: 0.5, fog: [255, 42, 58], fogA: 0.18 },
     ARCTIC: { bg: [2, 1, 4], bgA: 0.42, fog: [255, 255, 255], fogA: 0.18 },
     KITTY: { bg: [16, 6, 12], bgA: 0.5, fog: [255, 20, 147], fogA: 0.2 },
@@ -509,6 +594,7 @@ const updateMenuBg = (name: string) => {
 type MapAccent = { clock: RGB; city: RGB; forecast: RGB | null }
 const MAP_ACCENT_DEF: MapAccent = { clock: [130, 231, 215], city: [176, 255, 157], forecast: null }
 const MAP_ACCENT: Record<string, MapAccent> = {
+    NSD: { clock: [193, 112, 255], city: [0, 235, 116], forecast: [0, 235, 116] },
     ARCTIC: { clock: [255, 255, 255], city: [130, 220, 255], forecast: null },
     KITTY: { clock: [255, 20, 147], city: [255, 105, 190], forecast: [255, 20, 147] },
     SYNTHWAVE: { clock: [255, 60, 220], city: [100, 255, 170], forecast: [255, 60, 220] },
@@ -554,7 +640,7 @@ const updateCircleTint = (name: string) => {
     circleTint.value = (e || OVR.auricon) ? NEON.auricon : null
 }
 
-const LAUNCHER_TINT: Record<string, RGB> = { SYNTHWAVE: [45, 220, 210] }
+const LAUNCHER_TINT: Record<string, RGB> = { NSD: [193, 112, 255], SYNTHWAVE: [45, 220, 210] }
 export const launcherTint = { value: null as RGB | null }
 const updateLauncherTint = (name: string) => {
     const e = LAUNCHER_TINT[name]
@@ -562,7 +648,7 @@ const updateLauncherTint = (name: string) => {
     launcherTint.value = (e || OVR.launchico) ? NEON.launchico : null
 }
 
-const LAUNCHER_LABEL_TINT: Record<string, RGB> = { JOHNNY: [255, 208, 60] }
+const LAUNCHER_LABEL_TINT: Record<string, RGB> = { NSD: [0, 235, 116], JOHNNY: [255, 208, 60] }
 export const launcherLabelTint = { value: null as RGB | null }
 const updateLauncherLabelTint = (name: string) => {
     const e = LAUNCHER_LABEL_TINT[name]
@@ -571,7 +657,7 @@ const updateLauncherLabelTint = (name: string) => {
 }
 
 type RadioBg = { color: RGB; alpha: number }
-const RADIO_BG: Record<string, RadioBg> = { JOHNNY: { color: [255, 208, 60], alpha: 0.16 } }
+const RADIO_BG: Record<string, RadioBg> = { NSD: { color: [193, 112, 255], alpha: 0.16 }, JOHNNY: { color: [255, 208, 60], alpha: 0.16 } }
 export const radioBg = { value: null as RadioBg | null }
 const updateRadioBg = (name: string) => {
     const e = RADIO_BG[name]
@@ -581,7 +667,7 @@ const updateRadioBg = (name: string) => {
         : null
 }
 
-const NOTIF_BUBBLE: Record<string, RGB> = { NETWATCH: [94, 244, 248] }
+const NOTIF_BUBBLE: Record<string, RGB> = { NSD: [0, 235, 116], NETWATCH: [94, 244, 248] }
 export const notifBubble = { value: NOTIF_BUBBLE.NETWATCH as RGB | null }
 const updateNotifBubble = (name: string) => {
     const e = NOTIF_BUBBLE[name]
@@ -626,16 +712,24 @@ export const rgbToHex = ([r, g, b]: RGB) =>
     "#" + [r, g, b].map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("")
 
 // each theme has its own .toml terminal file, this maps them
-const RIO_STYLES: Record<string, string> = { GHOST: "ghost", KITTY: "kitty", SYNTHWAVE: "synthwave", ARCTIC: "arctic", BLOODMOON: "bloodmoon", BLADE: "blade", JOHNNY: "johnny" }
+const RIO_STYLES: Record<string, string> = { NSD: "nsd", GHOST: "ghost", KITTY: "kitty", SYNTHWAVE: "synthwave", ARCTIC: "arctic", BLOODMOON: "bloodmoon", BLADE: "blade", JOHNNY: "johnny" }
 
-const applyRioStyle = (name: string) => {
-    execAsync([`${CYBER_DIR}/scripts/rio-style`, RIO_STYLES[name] ?? "cybercore"]).catch(() => "")
-}
-
-const applyShellTheme = (name: string) => {
-    execAsync(["bash", "-c", `CYBER_DIR="${CYBER_DIR}" "${CYBER_DIR}/scripts/shell-theme" "${name}"`])
-        .then(() => { applyWmFromTheme() })
-        .catch(() => "")
+// One queue owns all external theme effects. A later selection skips queued
+// obsolete jobs; a running job finishes before the latest selection starts.
+let themeQueue: Promise<void> = Promise.resolve()
+let themeRequest = 0
+export const syncTheme = (name: string, wallpaper = false): Promise<void> => {
+    const request = ++themeRequest
+    const job = themeQueue.catch(() => {}).then(async () => {
+        if (request !== themeRequest) return
+        await execAsync(["env", `CYBER_DIR=${CYBER_DIR}`, `${CYBER_DIR}/scripts/shell-theme`, name])
+        await execAsync(["env", `CYBER_DIR=${CYBER_DIR}`, `${CYBER_DIR}/scripts/rio-style`, RIO_STYLES[name] ?? "cybercore"])
+        if (wallpaper && request === themeRequest)
+            await execAsync(["env", `CYBER_DIR=${CYBER_DIR}`, `${CYBER_DIR}/scripts/theme-wallpaper`, name])
+        applyWmFromTheme()
+    })
+    themeQueue = job
+    return job
 }
 
 let curPalette = "NETWATCH"
@@ -660,7 +754,8 @@ const applyDerived = (name: string) => {
     updateNotifBubble(name)
     updateNotifIconTint(name)
     updateAurTitleTint(name)
-    applyShellTheme(name)
+    for (const [key, value] of Object.entries(PALETTES[name] || {}))
+        if (!OVR[key]) setColor(key, value as RGB, false)
 }
 
 export const applyPalette = (name: string) => {
@@ -669,7 +764,6 @@ export const applyPalette = (name: string) => {
     for (const k of Object.keys(OVR)) delete OVR[k]
     for (const k of Object.keys(p)) setColor(k, p[k] as RGB, false)
     applyDerived(name)
-    applyRioStyle(name)
     notifyColorChange()
 }
 
@@ -726,7 +820,7 @@ const writeLoginColors = (): void => {
 export const loadUserColors = (): void => {
     try {
         const [ok, bytes] = GLib.file_get_contents(USER_PATH)
-        if (!ok) { applyPalette("NETWATCH"); writeLoginColors(); return }
+        if (!ok) { applyPalette("NETWATCH"); writeLoginColors(); syncTheme("NETWATCH").catch(print); return }
         const src = new TextDecoder().decode(bytes)
         const lines = src.split("\n")
         let saved = ""
@@ -745,7 +839,7 @@ export const loadUserColors = (): void => {
         }
         const name = saved || getPaletteName()
         applyDerived(name)
-        applyRioStyle(name)
+        syncTheme(name).catch(print)
         notifyColorChange()
         writeLoginColors()
     } catch (e) { print("[color] load:", e) }

@@ -2,7 +2,18 @@
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-$(loginctl show-session $(loginctl | grep $(whoami) | awk '{print $1}') -p Type --value 2>/dev/null || echo wayland)}"
+set -eu
+export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
+[ "$XDG_SESSION_TYPE" = wayland ] || { echo "qylock requires Wayland" >&2; exit 1; }
+lock_root="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+[ -d "$lock_root" ] && [ -O "$lock_root" ] || exit 1
+umask 077
+lock_session="${HYPRLAND_INSTANCE_SIGNATURE:-${WAYLAND_DISPLAY:-default}}"
+lock_session="${lock_session//[^a-zA-Z0-9_.-]/_}"
+exec 9>"$lock_root/qylock-$lock_session.lock"
+flock -n 9 || exit 0
+command -v quickshell >/dev/null || { echo "quickshell is missing; keeping any existing locker" >&2; exit 1; }
+[ -r "$DIR/lock_shell.qml" ] || exit 1
 export QT_MEDIA_BACKEND=ffmpeg
 QS_USER_THEME=""
 [ -r "$HOME/.config/qylock/theme" ] && read -r QS_USER_THEME < "$HOME/.config/qylock/theme"
@@ -28,7 +39,7 @@ if [ -z "${WAYLAND_DISPLAY:-}" ] && command -v wlr-randr >/dev/null 2>&1; then
     done
 fi
 
-killall -9 hyprlock swaylock wlogout 2>/dev/null || true
+# Never terminate another locker. The compositor arbitrates lock acquisition.
 
 wallpaper_lua="${XDG_CONFIG_HOME:-${HOME}/.config}/cyberarch/wallpaper.lua"
 if [ -r "$wallpaper_lua" ]; then

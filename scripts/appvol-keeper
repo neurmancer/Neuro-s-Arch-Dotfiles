@@ -5,7 +5,8 @@
 # <application.name>=<percent>      e.g.  Spotify=60
 STATE="${1:-$HOME/.cache/cyberpunk/appvol.conf}"
 mkdir -p "$(dirname "$STATE")"; touch "$STATE"
-exec 9>"$HOME/.cache/cyberpunk/appvol.lock" 2>/dev/null || exec 9>"/tmp/cyber-appvol.lock"
+. "$(dirname "$(readlink -f "$0")")/runtime.sh"
+exec 9>"$CYBER_RUNTIME/appvol.lock"
 flock -n 9 || exit 0
 command -v pactl >/dev/null 2>&1 || exit 0
 apply_all() {

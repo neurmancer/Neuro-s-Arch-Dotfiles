@@ -20,7 +20,7 @@ try { ICON = GdkPixbuf.Pixbuf.new_from_file(`${CYBER_DIR}/assets/icons/launcher.
 export const LauncherWindow = (mon?) => {
  const S = scaleOf(mon)
  const area = DrawingArea({}); area.set_size_request(Math.round(plane.width * S), Math.round(plane.height * S))
- onColorChange(() => area.queue_draw())
+ const recolor = onColorChange(() => area.queue_draw())
  let hover = false
  let flick = 1
 
@@ -77,6 +77,7 @@ export const LauncherWindow = (mon?) => {
      if (!flickT) flickT = interval(110, flip)
  }
 
+ area.connect("destroy", () => { recolor(); if (flickT) flickT.cancel() })
  const evt = EventBox({ child: area })
  try { evt.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK) } catch {}
  evt.connect("button-press-event", () => { try { openAppsMenu() } catch (e) { print(e) } return false })

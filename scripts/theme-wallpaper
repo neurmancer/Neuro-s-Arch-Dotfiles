@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -u
+set -euo pipefail
 
 NAME="${1:-NETWATCH}"
 WALLPAPERS_PATH="${HOME}/Pictures/Wallpapers"
@@ -24,11 +24,20 @@ pool="$(find "$dir" -maxdepth 1 -type f \( -iname '*.mp4' -o -iname '*.webm' -o 
 
 choice=""
 if [ -n "$current" ]; then
-    choice="$(printf '%s\n' "$pool" | grep -vx -F -- "$current" | shuf -n1)"
+    choice="$(printf '%s\n' "$pool" | grep -vx -F -- "$current" | shuf -n1 || true)"
 fi
 [ -n "$choice" ] || choice="$(printf '%s\n' "$pool" | shuf -n1)"
 
 mkdir -p "$USER_DIR"
-printf 'wallpaper = "%s"\nreturn wallpaper\n' "$choice" > "$USER_DIR/wallpaper.lua"
-
-exec bash "$THEME/scripts/set-wallpaper" "$choice"
+bash "$THEME/scripts/set-wallpaper" "$choice"
+python3 - "$USER_DIR/wallpaper.lua" "$choice" <<'WALLPY'
+import json, os, sys, tempfile
+path, choice = sys.argv[1:]
+fd, stage = tempfile.mkstemp(dir=os.path.dirname(path))
+try:
+    with os.fdopen(fd, 'w') as out:
+        out.write('wallpaper = ' + json.dumps(choice, ensure_ascii=False) + '\nreturn wallpaper\n')
+    os.replace(stage, path)
+finally:
+    if os.path.exists(stage): os.unlink(stage)
+WALLPY

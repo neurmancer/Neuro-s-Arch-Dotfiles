@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
-set -u
+set -euo pipefail
 
 NAME="${1:-NETWATCH}"
 AUG="${CYBER_DIR:-$HOME/.config/hypr/themes/cyberpunk}"
 GTK="$AUG/assets/gtk"
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
 USR="$CFG/cyberarch"
-KVDIR="$CFG/Kvantum/Daemon"
+KVDIR="$CFG/Kvantum/CyberArch"
+mkdir -p "$USR"
+exec 9>"$USR/.shell-theme.lock"
+flock -w 30 9
+STAGE="$(mktemp -d "$USR/.theme.XXXXXX")"
+trap 'rm -rf "$STAGE"' EXIT
 
 case "$NAME" in
+    NSD)       ACC="193 112 255"; SEC="0 235 116"; TXT="225 232 250"; DIM="145 153 180"; BAS="7 9 18"; WRN="0 235 116" ;;
     BLADE)     ACC="183 81 7";    SEC="195 120 18"; TXT="224 214 200"; DIM="127 123 157"; BAS="4 3 2";   WRN="202 83 170" ;;
     KITTY)     ACC="255 170 215"; SEC="255 200 232"; TXT="255 248 252"; DIM="222 180 205"; BAS="18 8 15"; WRN="255 206 230" ;;
     BLOODMOON) ACC="255 32 32";   SEC="255 60 60";   TXT="255 210 205"; DIM="130 50 50";   BAS="12 4 4";  WRN="255 90 50" ;;
@@ -90,13 +96,13 @@ if [ -f "$GTK/gtk.css" ]; then
         printf '@define-color cy_sel    rgba(%d,%d,%d,0.34);\n' ${A[0]} ${A[1]} ${A[2]}
         printf '@define-color cy_border rgba(%d,%d,%d,0.42);\n' ${A[0]} ${A[1]} ${A[2]}
         awk 'f{print} /__CYBER_PALETTE__/{f=1}' "$GTK/gtk.css"
-    } > "$USR/gtk.css"
+    } > "$STAGE/gtk.css"
+    mv -f "$STAGE/gtk.css" "$USR/gtk.css"
 
     for v in 3.0 4.0; do
         d="$CFG/gtk-$v"
         mkdir -p "$d"
-        rm -f "$d/gtk.css"
-        cp -f "$USR/gtk.css" "$d/gtk.css"
+        python3 "$AUG/scripts/theme-config.py" css "$d/gtk.css" "$USR/gtk.css"
     done
 fi
 
@@ -128,9 +134,10 @@ if [ -f "$GTK/DaemonKvantum/Daemon.kvconfig" ]; then
         -e "s|^transparent_dolphin_view=.*|transparent_dolphin_view=true|" \
         -e "s|^transparent_ktitle_label=.*|transparent_ktitle_label=true|" \
         -e "s|^transparent_menutitle=.*|transparent_menutitle=true|" \
-        "$GTK/DaemonKvantum/Daemon.kvconfig" > "$KVDIR/Daemon.kvconfig"
+        "$GTK/DaemonKvantum/Daemon.kvconfig" > "$STAGE/CyberArch.kvconfig"
+    mv -f "$STAGE/CyberArch.kvconfig" "$KVDIR/CyberArch.kvconfig"
 
-    printf '[General]\ntheme=Daemon\n' > "$CFG/Kvantum/kvantum.kvconfig"
+    python3 "$AUG/scripts/theme-config.py" ini "$CFG/Kvantum/kvantum.kvconfig" General theme=CyberArch
 fi
 
 if [ -f "$GTK/DaemonKvantum/Daemon.svg" ]; then
@@ -140,10 +147,11 @@ if [ -f "$GTK/DaemonKvantum/Daemon.svg" ]; then
         -e "s|#fb3048|$AC2_H|g" -e "s|#b74aff|$SEC_H|g" -e "s|#c86c00|$WRN_H|g" \
         -e "s|#070d1a|$(toneh 0)|g" -e "s|#0f0e15|$(toneh 0)|g" \
         -e "s|#101e2a|$(toneh 35)|g" -e "s|#111e29|$(toneh 35)|g" \
-        "$GTK/DaemonKvantum/Daemon.svg" > "$KVDIR/Daemon.svg"
+        "$GTK/DaemonKvantum/Daemon.svg" > "$STAGE/CyberArch.svg"
+    mv -f "$STAGE/CyberArch.svg" "$KVDIR/CyberArch.svg"
 fi
 
-cat > "$USR/shell_colors.lua" <<EOF
+cat > "$STAGE/shell_colors.lua" <<EOF
 return {
     palette  = "$NAME",
     accent   = "$ACC_R",
@@ -159,12 +167,14 @@ return {
 }
 EOF
 
+mv -f "$STAGE/shell_colors.lua" "$USR/shell_colors.lua"
+
 if command -v hyprctl >/dev/null 2>&1; then
-    hyprctl eval "hl.config({general={border_size=$BSZ,col={active_border={colors={\"rgba(${ACC_R}ff)\",\"rgba(${AC2_R}ff)\"},angle=45},inactive_border=\"rgba(${ACC_R}44)\"}},decoration={rounding=$ROUND,rounding_power=$POWER,shadow={color=\"rgba(${ACC_R}${GLOW_ALPHA})\",color_inactive=\"rgba(${ACC_R}18)\",range=$GLOW_RANGE,render_power=$GLOW_RP},glow={enabled=$GLOW,color=\"rgba(${ACC_R}ff)\",range=$GLOW_RANGE,render_power=$GLOW_RP}}})" >/dev/null 2>&1 || true
+    hyprctl eval "hl.config({general={border_size=$BSZ,col={active_border={colors={\"rgba(${ACC_R}ff)\",\"rgba(${AC2_R}ff)\"},angle=45},inactive_border=\"rgba(${ACC_R}44)\"}},decoration={rounding=$ROUND,rounding_power=$POWER,shadow={color=\"rgba(${ACC_R}${GLOW_ALPHA})\",color_inactive=\"rgba(${ACC_R}18)\",range=$GLOW_RANGE,render_power=$GLOW_RP},glow={enabled=$GLOW,color=\"rgba(${ACC_R}ff)\",range=$GLOW_RANGE,render_power=$GLOW_RP}}})" >/dev/null 2>&1
 fi
 
 if command -v gsettings >/dev/null 2>&1; then
-    gsettings set org.gnome.desktop.interface color-scheme "prefer-dark" 2>/dev/null
+    gsettings set org.gnome.desktop.interface color-scheme "prefer-dark" 2>/dev/null || echo "Could not set GNOME color-scheme" >&2
 fi
 
 exit 0

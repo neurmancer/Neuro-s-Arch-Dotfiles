@@ -77,6 +77,7 @@ let pins: any = { stocks: ["NVDA", "SPCX", "SNDK", "INTC", "MU"], crypto: ["bitc
 let tab = "crypto"
 let quotes: any = {}
 let areas: any[] = []
+let sharedPoll: any = null
 let mkModal: any = null
 onColorChange(() => areas.forEach(a => a?.queue_draw()))
 let mQuery = ""
@@ -985,11 +986,13 @@ const openNewsArticle = (id: string) => {
 
 export const MarketsPanel = (mon?: any) => {
     const S = scaleOf(mon)
-    loadPins()
-    fetchBrowse("stocks").catch(() => { })
-    fetchBrowse("crypto").catch(() => { })
-    refreshAll()
-    interval(60000, refreshAll)
+    if (!sharedPoll) {
+        loadPins()
+        fetchBrowse("stocks").catch(print)
+        fetchBrowse("crypto").catch(print)
+        refreshAll()
+        sharedPoll = interval(60000, refreshAll)
+    }
     const area = DrawingArea({})
     areas.push(area)
     const RX0 = 6, RX1 = 300
@@ -1088,6 +1091,11 @@ export const MarketsPanel = (mon?: any) => {
         area.queue_draw()
         if (!moving && hoverT) { hoverT.cancel(); hoverT = null }
     }
+    area.connect("destroy", () => {
+        areas = areas.filter(a => a !== area)
+        if (hoverT) hoverT.cancel()
+        if (!areas.length && sharedPoll) { sharedPoll.cancel(); sharedPoll = null }
+    })
     const kickHover = () => { if (!hoverT) hoverT = interval(40, stepHover) }
     const tabHit = (px: number, py: number) => {
         let hx = RX1 - 162

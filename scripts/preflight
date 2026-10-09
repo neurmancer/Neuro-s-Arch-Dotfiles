@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Build into an explicit staging directory; never write generated files to source.
+set -euo pipefail
+DIR="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+OUT="${1:?usage: preflight OUTPUT_DIRECTORY}"
+AGS_BIN="${AGS_BIN:-$HOME/.local/bin/ags}"
+[ -x "$AGS_BIN" ] || AGS_BIN="$(command -v ags)"
+for cmd in sassc gjs astal hyprctl python3 flock timeout; do
+    command -v "$cmd" >/dev/null || { echo "Missing runtime dependency: $cmd" >&2; exit 1; }
+done
+mkdir -p "$OUT"
+"$AGS_BIN" bundle "$DIR/core.ts" "$OUT/shell.js" --gtk 3
+sassc "$DIR/components/style/cyber.scss" "$OUT/shell.css"
+# Runtime imports are not executed here: starting the GUI would acquire session services.
+[ -s "$OUT/shell.js" ] && [ -s "$OUT/shell.css" ]

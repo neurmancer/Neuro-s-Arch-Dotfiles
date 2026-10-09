@@ -1,43 +1,57 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-AGS_BIN="${HOME}/.local/bin/ags"
-# Resolve the script itself so invocation through the canonical symlink or a
-# separate script symlink always launches the checkout that owns this file.
+AGS_BIN="${AGS_BIN:-${HOME}/.local/bin/ags}"
 SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]}")"
 THEME_DIR="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd -P)"
 CORE_TS="$THEME_DIR/core.ts"
-
-[ -x "$AGS_BIN" ] || exit 1
-[ -f "$CORE_TS" ] || exit 1
-
-# Query the named instance on this user's session bus. Unrelated GJS processes
-# and stale socket files must not prevent the HUD from starting.
-if gdbus call --session --dest org.freedesktop.DBus \
-    --object-path /org/freedesktop/DBus \
-    --method org.freedesktop.DBus.NameHasOwner io.Astal.cyberpunk 2>/dev/null \
-    | grep -Fxq '(true,)'; then
-    exit 0
+[ -x "$AGS_BIN" ] || AGS_BIN="$(command -v ags)"
+export AGS_BIN
+. "$THEME_DIR/scripts/runtime.sh"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/cyberarch"
+mkdir -p "$STATE"
+prepare() {
+    local staged
+    staged="$(mktemp -d "$CYBER_RUNTIME/build.XXXXXX")"
+    if ! "$THEME_DIR/scripts/preflight" "$staged"; then rm -rf "$staged"; return 1; fi
+    # Keep two complete generations; readers see a single directory switch.
+    if [ -L "$CYBER_RUNTIME/current" ]; then
+        ln -sfn "$(readlink "$CYBER_RUNTIME/current")" "$CYBER_RUNTIME/previous"
+    fi
+    ln -s "$staged" "$CYBER_RUNTIME/current.new"
+    mv -Tf "$CYBER_RUNTIME/current.new" "$CYBER_RUNTIME/current"
+}
+if [ "${1:-}" = --check ]; then
+    stage="$(mktemp -d "$CYBER_RUNTIME/check.XXXXXX")"
+    trap 'rm -rf "$stage"' EXIT
+    "$THEME_DIR/scripts/preflight" "$stage"
+    exit
 fi
-
+if [ "${1:-}" = --prepare ]; then prepare; exit; fi
+exec 8>"$CYBER_RUNTIME/supervisor.lock"
+flock -n 8 || exit 0
+# A legacy unsupervised instance is adopted by scripts/restart after preflight.
+if timeout 2 astal -i cyberpunk health >/dev/null 2>&1; then exit 0; fi
+[ -L "$CYBER_RUNTIME/current" ] || prepare
 runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-display="${WAYLAND_DISPLAY:-}"
-
-if [ -z "$display" ] || [ ! -S "$runtime_dir/$display" ]; then
-    display=""
-    for socket in "$runtime_dir"/wayland-[0-9]*; do
-        [ -S "$socket" ] || continue
-        candidate="${socket##*/}"
-        [[ "$candidate" =~ ^wayland-[0-9]+$ ]] || continue
-        if command -v wlr-randr >/dev/null 2>&1; then
-            WAYLAND_DISPLAY="$candidate" XDG_RUNTIME_DIR="$runtime_dir" wlr-randr >/dev/null 2>&1 || continue
-        fi
-        display="$candidate"
-        break
-    done
-fi
-
-[ -n "$display" ] || exit 1
-
-exec env XDG_RUNTIME_DIR="$runtime_dir" WAYLAND_DISPLAY="$display" GDK_BACKEND=wayland \
-    "$AGS_BIN" run --gtk 3 "$CORE_TS" >/tmp/cyberhypr-debug.log 2>&1
+[ -n "${WAYLAND_DISPLAY:-}" ] && [ -S "$runtime_dir/$WAYLAND_DISPLAY" ] || {
+    echo 'WAYLAND_DISPLAY must identify the current compositor' >&2; exit 1;
+}
+child=""
+trap 'trap - TERM INT; [ -z "$child" ] || kill "$child" 2>/dev/null; wait || true; exit 0' TERM INT
+failures=0
+while [ "$failures" -lt 5 ]; do
+    build="$(readlink -f "$CYBER_RUNTIME/current")"
+    started=$SECONDS
+    # Bound log growth across starts, preserving the previous run.
+    [ ! -f "$STATE/shell.log" ] || mv -f "$STATE/shell.log" "$STATE/shell.previous.log"
+    env CYBER_BUILD_ID="$build" CYBER_CSS="$build/shell.css" GDK_BACKEND=wayland \
+        gjs -m "$build/shell.js" 8>&- >>"$STATE/shell.log" 2>&1 &
+    child=$!
+    wait "$child" || true
+    child=""
+    if (( SECONDS - started > 60 )); then failures=0; fi
+    failures=$((failures + 1))
+    sleep "$failures"
+done
+echo 'Shell failed five times; inspect shell.log and run scripts/restart after repair.' >>"$STATE/shell.log"
+exit 1

@@ -1,3 +1,4 @@
+import { RUNTIME_DIR } from "../../env.ts"
 
 
 
@@ -92,6 +93,7 @@ const refreshNetSpeed = () => {
 const WMO = { 0: "Clear", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast", 45: "Fog", 48: "Fog", 51: "Drizzle", 53: "Drizzle", 55: "Drizzle", 56: "Freezing drizzle", 57: "Freezing drizzle", 61: "Light rain", 63: "Rain", 65: "Heavy rain", 66: "Freezing rain", 67: "Freezing rain", 71: "Light snow", 73: "Snow", 75: "Heavy snow", 77: "Snow grains", 80: "Rain", 81: "Rain", 82: "Heavy rain", 85: "Snow", 86: "Heavy snow", 95: "Thunderstorm", 96: "Thunderstorm", 99: "Thunderstorm" }
 const forecast: { day: string; hi: string; lo: string; code: number; pop: number; hiN: number; loN: number; wind: number; uv: number; sunrise: string; sunset: string; date: string }[] = []
 let areas: any[] = []
+let sharedPolls: any[] = []
 let paletteGen = 0
 onColorChange(() => { paletteGen++; areas.forEach(a => a?.queue_draw()) })
 
@@ -157,7 +159,7 @@ const loadWxLocation = () => {
 // tilemap of a random location. chill, the theme does not track your geolocation,
 // but a random place from the city provided.
 const fetchMap = () => {
- const out = "/tmp/cyber-map.png"
+ const out = `${RUNTIME_DIR}/cyber-map.png`
  const request = ++mapRequest
  const lat = geoLat, lon = geoLon
  execAsync(["python3", `${CYBER_DIR}/scripts/gen-map.py`, String(lat), String(lon), out])
@@ -312,11 +314,15 @@ let cache = null, cacheKey = ""
 export const SidePanel = (mon?: any) => {
  const S = scaleOf(mon)
  ensureWxModal()
- loadWxLocation(); refreshWeather()
- interval(1_800_000, refreshWeather)
- refreshNet(); interval(15_000, refreshNet)
- refreshNetSpeed(); interval(1000, refreshNetSpeed)
+ if (!sharedPolls.length) {
+   loadWxLocation(); refreshWeather(); refreshNet(); refreshNetSpeed()
+   sharedPolls = [interval(1_800_000, refreshWeather), interval(15_000, refreshNet), interval(1000, refreshNetSpeed)]
+ }
  const area = DrawingArea({}); areas.push(area); area.set_size_request(Math.round(plane.width * S), Math.round(plane.height * S))
+ area.connect("destroy", () => {
+   areas = areas.filter(a => a !== area)
+   if (!areas.length) { sharedPolls.forEach(t => t.cancel()); sharedPolls = [] }
+ })
  if (!mapTile) try { mapTile = Cairo.ImageSurface.createFromPNG(`${CYBER_DIR}/assets/img/map-grid.png`); mapVer++ } catch {}
  area.connect("draw", (_w, ctx) => {
  ctx.scale(S, S)

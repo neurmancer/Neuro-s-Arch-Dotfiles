@@ -8,7 +8,7 @@ import AstalNotifd from "gi://AstalNotifd"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import Gdk from "gi://Gdk?version=3.0"
-import { COMPONENTS_DIR, CYBER_DIR, SCREEN_WIDTH, SCREEN_HEIGHT, scaleOf } from "./env.ts"
+import { COMPONENTS_DIR, CYBER_DIR, RUNTIME_DIR, SCREEN_WIDTH, SCREEN_HEIGHT, scaleOf } from "./env.ts"
 import { loadUserColors, PALETTES, getActivePalette } from "./components/modules/colors.ts"
 import { applyColors } from "./components/modules/themesettings.ts"
 import { applyWmRules, applyWmFromTheme } from "./components/modules/wmconfig.ts"
@@ -37,14 +37,10 @@ import { PlayerWindow, togglePlayer } from "./components/modules/player.ts"
 import { NowPlayingWindow } from "./components/modules/nowplaying.ts"
 
 const SCSS = `${COMPONENTS_DIR}/style/cyber.scss`
-const CSS = `${COMPONENTS_DIR}/style/cyber.css`
-
+const CSS = GLib.getenv("CYBER_CSS") || `${RUNTIME_DIR}/shell.css`
+let shellReady = false
 const compileCss = async () => {
- try {
- await execAsync(["sassc", SCSS, CSS])
- } catch (e) {
- print("[cyberpunk] sassc:", e)
- }
+ if (!GLib.getenv("CYBER_CSS")) await execAsync(["sassc", SCSS, CSS])
  App.apply_css(CSS, true)
 }
 
@@ -260,6 +256,17 @@ const createMonitorHud = (mon) => {
  return hudWins.slice(first)
 }
 
+const removeMonitorHud = (name: string) => {
+ const group = monitorHuds.get(name)
+ if (!group) return
+ monitorHuds.delete(name)
+ for (const w of group.wins) {
+   const i = hudWins.indexOf(w)
+   if (i >= 0) hudWins.splice(i, 1)
+   w.destroy()
+ }
+}
+
 const syncMonitorHud = () => {
  const present = new Set<string>()
  const mons = (App as any).get_monitors()
@@ -270,6 +277,10 @@ const syncMonitorHud = () => {
  const geo = mon.get_geometry()
  const geometry = `${geo.x},${geo.y},${geo.width},${geo.height},${mon.get_scale_factor()}`
  let group = monitorHuds.get(name)
+ if (group && (geometry !== group.geometry || mon !== group.mon)) {
+   removeMonitorHud(name)
+   group = undefined
+ }
  if (!group) {
  group = { mon, wins: createMonitorHud(mon), online: false, geometry: "" }
  monitorHuds.set(name, group)
@@ -288,8 +299,7 @@ const syncMonitorHud = () => {
  group.mon = mon; group.online = online; group.geometry = geometry
  }
  for (const [name, group] of monitorHuds) if (!present.has(name)) {
- group.online = false
- for (const w of group.wins) { w._monitorDetached = true; w.visible = false }
+ removeMonitorHud(name)
  }
 }
 
@@ -299,16 +309,16 @@ App.start({
  requestHandler(request, res) {
  request = request.trim()
  const reply = (r) => { try { res(r) } catch {} }
- if (request === "palette-current") {
+ if (request === "health") {
+ reply(shellReady ? (GLib.getenv("CYBER_BUILD_ID") || "development") : "starting")
+ } else if (request === "palette-current") {
  reply(getActivePalette())
  } else if (request === "palette-next" || request === "palette-prev") {
  try {
  const names = Object.keys(PALETTES)
  const direction = request === "palette-next" ? 1 : -1
  const name = names[(names.indexOf(getActivePalette()) + direction + names.length) % names.length]
- applyColors(name)
- showToast(`THEME: ${name}`)
- reply("ok")
+ applyColors(name).then(() => { showToast(`THEME: ${name}`); reply("ok") }).catch(e => { print(e); reply("err") })
  } catch (e) { print(e); reply("err") }
  } else if (request === "launcher") {
  execAsync(["sh", "-c", "rofi -show drun || rofi -show run"]).catch(print)
@@ -398,8 +408,9 @@ App.start({
 
 
 
- main() {
- compileCss()
+ async main() {
+ try {
+ await compileCss()
  loadUserColors()
  applyWmRules()
  applyWmFromTheme()
@@ -432,5 +443,7 @@ App.start({
  refreshWins(); wireSocket()
  execAsync(["hyprctl", "activeworkspace", "-j"]).then((s) => { try { setWorkspaceBadge(JSON.parse(s).name) } catch {} }).catch(() => {})
  interval(30000, refreshWins)
+ shellReady = true
+ } catch (e) { print("[startup]", e); App.quit() }
  },
 })

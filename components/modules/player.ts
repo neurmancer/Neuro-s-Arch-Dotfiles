@@ -1,3 +1,4 @@
+import { RUNTIME_DIR } from "../../env.ts"
 import { Window, DrawingArea, EventBox, activeMonitor } from "./widget.ts"
 import { Anchor, Layer, Exclusivity, Keymode } from "./widget.ts"
 import { interval, timeout, execAsync } from "astal"
@@ -43,7 +44,7 @@ const loadCover = (url) => {
  const apply = (path) => { if (url !== coverUrl) return; try { coverPb = GdkPixbuf.Pixbuf.new_from_file(path); coverScaled = coverPb.scale_simple(CSZ, CSZ, GdkPixbuf.InterpType.BILINEAR) } catch {} panelDirty = true; pArea && pArea.queue_draw() }
  if (url.startsWith("file://")) apply(decodeURIComponent(url.slice(7)))
  else if (/^https?:\/\//.test(url)) {
-     const file = `/tmp/aug-cover-${url.replace(/[^a-zA-Z0-9]/g, "").slice(-44)}`
+     const file = `${RUNTIME_DIR}/aug-cover-${url.replace(/[^a-zA-Z0-9]/g, "").slice(-44)}`
      execAsync(["sh", "-c", '[ -s "$1" ] || curl -sLf --max-time 8 -o "$1" "$2"', "sh", file, url]).then(() => apply(file)).catch(() => {})
  }
 }

@@ -239,7 +239,7 @@ const scanlines = (ctx: any, x0: number, x1: number, y: number, h: number, gap: 
 export const Monitors = (mon?: any) => {
     const S = scaleOf(mon)
     const area = DrawingArea({}); area.set_size_request(Math.round(plane.width * S), Math.round(plane.height * S))
-    onColorChange(() => area.queue_draw())
+    const recolor = onColorChange(() => area.queue_draw())
     const d = { sto: 0, cpu: 0, ram: 0, bat: 0 }
     const bar = (k: "sto" | "cpu" | "ram" | "bat") => animOn("animGauge") ? clamp(d[k]) : 1
 
@@ -462,14 +462,14 @@ export const Monitors = (mon?: any) => {
         else if (!busy && t) { t.cancel(); t = null }
     }
     sampleMetrics()
-    cpu.frac.subscribe(pump); ram.frac.subscribe(pump); poke.subscribe(pump)
+    const unsubscribe = [cpu.frac.subscribe(pump), ram.frac.subscribe(pump), poke.subscribe(pump)]
     onConfigChange(() => { sampleMetrics(); pump(); area.queue_draw() })
     let chargeT: any = null
     const chargePump = interval(1000, () => {
         if (animOn("animGauge") && slotKey("bat") === "battery" && isCharging()) { if (!chargeT) chargeT = interval(90, () => area.queue_draw()) }
         else if (chargeT) { chargeT.cancel(); chargeT = null }
     })
-    area.connect("destroy", () => { if (t) t.cancel(); if (chargeT) chargeT.cancel(); chargePump.cancel() })
+    area.connect("destroy", () => { if (t) t.cancel(); if (chargeT) chargeT.cancel(); chargePump.cancel(); recolor(); unsubscribe.forEach(fn => fn()) })
     return Box({ className: "monitors", children: [evt] })
 }
 const lighten = (c: RGB, t: number): RGB => [c[0] + (255 - c[0]) * t, c[1] + (255 - c[1]) * t, c[2] + (255 - c[2]) * t] as any

@@ -1,6 +1,6 @@
 import GLib from "gi://GLib"
 import { execAsync } from "astal"
-import { USER_DIR } from "../../env.ts"
+import { USER_DIR, CYBER_DIR } from "../../env.ts"
 
 
 export type WmVal = boolean | number | string
@@ -100,7 +100,9 @@ export const applyWmLive = (): void => {
  const b1 = bc || ta
  const b2 = bc || ta2 || ta
  const glowOn = wmBool("wmGlow") && wmBool("wmBorders")
- const op = wmBool("wmOpacity") ? wmNum("wmOpacityVal") : 1
+ const selected = wmStr("wmOpacityMode") === "only" || wmStr("wmOpacityMode") === "except"
+ const op = wmBool("wmOpacity") && !selected ? wmNum("wmOpacityVal") : 1
+ const inactive = wmBool("wmOpacity") && !selected ? Math.max(0.5, op - 0.08) : 1
  const alpha = Math.round(wmNum("wmShadowAlpha") * 2.55)
  let round = Math.round(wmNum("wmRounding"))
  if (wmCornersIs("sharp")) round = 0
@@ -111,7 +113,7 @@ export const applyWmLive = (): void => {
  if (b1 && b2) {
      conf += `,col={active_border={colors={"rgba(${hx(b1[0])}${hx(b1[1])}${hx(b1[2])}ff)","rgba(${hx(b2[0])}${hx(b2[1])}${hx(b2[2])}ff)"},angle=45},inactive_border="rgba(${hx(b1[0])}${hx(b1[1])}${hx(b1[2])}44)"}`
  }
- conf += `},decoration={rounding=${round},rounding_power=${power},active_opacity=${op},inactive_opacity=${Math.max(0.5, op - 0.08).toFixed(2)}`
+ conf += `},decoration={rounding=${round},rounding_power=${power},active_opacity=${op},inactive_opacity=${inactive.toFixed(2)}`
  conf += `,glow={enabled=${glowOn}`
  if (sc) conf += `,color="rgba(${hx(sc[0])}${hx(sc[1])}${hx(sc[2])}ff)"`
  conf += `,range=${wmNum("wmGlowRange")},render_power=${wmNum("wmGlowRp")}}`
@@ -124,25 +126,13 @@ export const applyWmLive = (): void => {
 }
 
 
-const RULE_TAG = "cyberarch-wm"
-
-const ruleLua = (cls: string, op: number): string =>
- `hl.window_rule({ name = "${RULE_TAG}", match = { class = "${cls}" }, opacity = ${op} })`
-
+let ruleQueue: Promise<unknown> = Promise.resolve()
 export const applyWmRules = (): void => {
- const mode = wmStr("wmOpacityMode")
- const apps = wmStr("wmOpacityApps").split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
- if (mode === "off" || !wmBool("wmOpacity") || apps.length === 0) return
- const op = wmNum("wmOpacityVal")
- const jobs: string[] = []
- for (const app of apps) {
-     const c = app.replace(/["\\]/g, "")
-     if (!c) continue
-     const cls = mode === "only" ? `(?i)^${c}$` : `(?i)^((?!${c}).)*$`
-     jobs.push(`h[#h+1] = ${ruleLua(cls, op)}`)
- }
- if (jobs.length === 0) return
- execAsync(["hyprctl", "eval", `local h = {}; ${jobs.join(" ")}; return "ok"`]).catch(() => {})
+ // Read the latest saved settings inside the serialized compositor call.
+ const quote = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`
+ const code = `local f = loadfile(${quote(USER_DIR + "/wm_config.lua")}); local w = f and f() or {}; dofile(${quote(CYBER_DIR + "/config/wm-opacity.lua")})(w.wm or w); return "ok"`
+ ruleQueue = ruleQueue.catch(print).then(() => execAsync(["hyprctl", "eval", code]))
+ ruleQueue.catch(print)
 }
 
 export const setWm = (k: string, v: WmVal): void => {

@@ -1,3 +1,4 @@
+import { RUNTIME_DIR } from "../../env.ts"
 import { Window, DrawingArea, EventBox, activeMonitor, monitorAtPoint } from "./widget.ts"
 import { Anchor, Layer, Exclusivity, Keymode } from "./widget.ts"
 import { interval, timeout, execAsync } from "astal"
@@ -372,6 +373,7 @@ const finish = () => {
              const file = `${dir}/${GLib.DateTime.new_now_local().format("%Y-%m-%d_%H-%M-%S-%f")}.mp4`
              const proc = Gio.Subprocess.new(["wf-recorder", "-g", geom, "-f", file, "-p", "preset=ultrafast", "-p", "crf=28"], Gio.SubprocessFlags.NONE)
              recorder = proc
+             GLib.file_set_contents(`${RUNTIME_DIR}/recording`, proc.get_identifier() || "")
              let shown = false
              const started = timeout(300, () => {
                  if (recorder !== proc) return
@@ -383,7 +385,7 @@ const finish = () => {
                  let failed = false
                  try { proc.wait_finish(result); failed = !proc.get_successful() } catch (e) { failed = true; print(e) }
                  if (recorder !== proc) return
-                 recorder = null; started.cancel()
+                 recorder = null; GLib.unlink(`${RUNTIME_DIR}/recording`); started.cancel()
                  if (shown && isRecording()) setRecording(false)
                  if (failed) timeout(250, () => showToast("RECORDING FAILED"))
              })
@@ -415,7 +417,7 @@ const monitorPayload = (payload = "") => {
 export const triggerRecordRegion = (payload = "") => {
  if (recorder) { recorder.send_signal(2); return }
  if (isRecording()) {
- execAsync(["sh", "-c", "pkill -INT -x wf-recorder 2>/dev/null || pkill -INT -f '[w]f-recorder' 2>/dev/null"]).catch(() => {})
+ // A stale animation is not evidence that an unrelated recorder belongs to us.
  try { setRecording(false) } catch (e) { print(e) }
  return
  }

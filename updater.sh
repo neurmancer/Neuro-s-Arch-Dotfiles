@@ -113,120 +113,74 @@ cmd_spawn() {
     esac
 }
 
-cmd_apply() {
-    clear; banner
-
-    command -v git >/dev/null 2>&1 || { err "git not found |::| install it and re-run"; exit 1; }
-    if [ ! -d "$THEME/.git" ]; then
-        err "$THEME is not a git clone |::| nothing to fast-forward"
-        printf "  ${DIM}re-clone it instead:${R}\n"
-        printf "    ${CYAN}git clone https://github.com/%s.git${R}\n" "$REPO"
-        printf "    ${CYAN}cd %s && ./install.sh${R}\n" "${REPO#*/}"
-        exit 1
-    fi
-    cd "$THEME" || exit 1
-
-    hdr "VERSION"
-    lv="$(local_ver)"
-    step "installed  ${B}v$lv${R}"
-    tag=""; rv=""
-    if fetch_release; then
-        tag="$(remote_tag)"; rv="$(norm "$tag")"
-        step "latest     ${B}v$rv${R}"
-    else
-        warn "Script flatined |::| Failed to jack in to github servers, falling back to the trac branch"
-    fi
-    if [ -n "$rv" ] && ! vlt "$lv" "$rv"; then
-        line
-        ok "CyberArch is already up to date"
-        exit 0
-    fi
-
-    hdr "WORKING TREE"
-    if ! git diff --quiet -- components/style/cyber.css 2>/dev/null; then
-        git checkout -- components/style/cyber.css 2>/dev/null &&  ok "reverted components/style/cyber.css |::| Rebuilt on every boot"
-    fi
-    if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-        step "local changes found:"
-        git status --porcelain --untracked-files=no | sed 's/^/      /'
-        if git stash push -m "cyberarch-update $(date +%F-%H%M)" >/dev/null 2>&1; then
-            ref="$(git stash list | head -1 | cut -d: -f1)"
-            [ -n "$ref" ] || ref="the newest stash"
-            ok "Stashed as $ref |::| get 'em back with: git -C $THEME stash pop"
-        else
-            err "Could not stash |::| resolve those changes yourself and re-run"
-            exit 1
-        fi
-    else
-        ok "tree clean"
-    fi
-
-    hdr "PULL"
-    OLD="$(git rev-parse HEAD)"
-    if ! git fetch --tags --prune origin; then
-        err "Failed to jack in onto remote |::| check your net and re-run, choom"
-        exit 1
-    fi
-    target=""
-    if [ -n "$tag" ]; then
-        if ! git fetch origin "refs/tags/$tag"; then
-            err "Release tag $tag is unavailable from origin"
-            exit 1
-        fi
-        target="$(git rev-parse FETCH_HEAD)"
-        ok "target $tag"
-    else
-        br="$(git symbolic-ref --quiet --short HEAD 2>/dev/null)"
-        [ -n "$br" ] || br="master"
-        target="origin/$br"
-        ok "target $target"
-    fi
-    if ! git merge --ff-only "$target"; then
-        err "fast-forward refused"
-        printf "  ${GREY}Installer just delta'd. It appears you have local commits, or an incoming file collides with an untracked one.${R}\n"
-        printf "  ${DIM}inspect with: git -C %s log --oneline HEAD..%s${R}\n" "$THEME" "$target"
-        exit 1
-    fi
-    NEW="$(git rev-parse HEAD)"
-    if [ "$OLD" = "$NEW" ]; then
-        warn "Netrunner deck already up to date |::| the release tag points to current ver."
-    else
-        ok "$(git rev-list --count "$OLD..$NEW") commit(s) applied"
-    fi
-
-    nv="$rv"
-    [ -n "$nv" ] || { nv=""; read -r nv < "$THEME/VERSION" 2>/dev/null; nv="$(norm "${nv:-$lv}")"; }
+cmd_apply() (
+    set -euo pipefail
+    command -v git >/dev/null || { err "git is required"; exit 1; }
+    git -C "$THEME" rev-parse --is-inside-work-tree >/dev/null || {
+        err "This is a packaged installation; update it through the package manager."; exit 1;
+    }
+    [ -w "$THEME" ] && [ "$(id -u)" != 0 ] || {
+        err "Do not run the desktop updater as root; use the distro package manager."; exit 1;
+    }
     mkdir -p "$USER_DIR"
-    printf '%s\n' "$nv" > "$APPLIED"
-    printf '%s\n' "$NEW" > "$APPLIED_COMMIT"
-
-    hdr "POST-UPDATE"
-    if [ "$OLD" = "$NEW" ]; then
-        ok "no new chrome to flash |::| deck already runs this code, skipping the restart"
-        line
-        exit 0
-    fi
-    printf '%s\n' "$nv" > "$STAMP"
-    if ! git diff --quiet "$OLD" "$NEW" -- install.sh; then
-        warn "Your install.sh seems rusted, choom |::| Installer has new chrome appended, likely new dependencies."
-        printf "  ${CYAN}?${R} re-run the installer now? (y/N) "
-        ans=""
-        read -r ans </dev/tty 2>/dev/null || ans=""
-        case "$ans" in
-            [yY]*) exec "$THEME/install.sh" ;;
-        esac
-        warn "S K I P P E D |::| run ./install.sh yourself if theme suddenly flatlines."
-    fi
-    if command -v hyprctl >/dev/null 2>&1 && [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
-        hyprctl reload >/dev/null 2>&1 && ok "hyprland config reloaded"
-    fi
-    line
-    printf "${GRN}${B}        ░▒▓  CYBERARCH IS NOW ON V%s  ▓▒░${R}\n" "$nv"
-    line
-    step "Theme fully chromed. Restarting AGS …"
-    setsid "$THEME/scripts/restart" >/dev/null 2>&1 &
-    sleep 1
-}
+    exec 9>"$USER_DIR/.update.lock"
+    flock -n 9 || { err "Another update is running"; exit 1; }
+    cd "$THEME"
+    [ -z "$(git status --porcelain --untracked-files=all)" ] || {
+        err "Commit or back up local changes before updating. Nothing was stashed or removed."; exit 1;
+    }
+    fetch_release || { err "Release lookup failed; no branch fallback was applied."; exit 1; }
+    tag="$(remote_tag)"
+    [[ "$tag" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]*$ ]] || { err "Invalid release tag"; exit 1; }
+    rv="$(norm "$tag")"
+    vlt "$(local_ver)" "$rv" || { ok "Already up to date"; exit 0; }
+    OLD="$(git rev-parse HEAD)"
+    git fetch origin "refs/tags/$tag"
+    target="$(git rev-parse 'FETCH_HEAD^{commit}')"
+    git merge-base --is-ancestor "$OLD" "$target" || { err "Release is not a fast-forward"; exit 1; }
+    # Installer/dependency changes require an explicit install/package upgrade,
+    # before the running checkout is touched.
+    git diff --quiet "$OLD" "$target" -- install.sh package.json packaging || {
+        err "This release changes installation/dependencies. Install the release in a separate checkout, or upgrade its distro package."; exit 1;
+    }
+    stage="$(mktemp -d)"
+    activated=false
+    committed=false
+    cleanup() {
+        result=$?
+        trap - EXIT INT TERM
+        if "$activated" && ! "$committed"; then
+            err "Update failed; restoring the previous checkout"
+            if git reset --keep "$OLD"; then
+                "$THEME/scripts/restart" || err "Previous shell could not restart; inspect its log"
+            else
+                err "Rollback would overwrite concurrent edits. Restore $OLD after saving those edits."
+            fi
+        fi
+        git worktree remove --force "$stage/tree" >/dev/null 2>&1 || true
+        rm -rf "$stage"
+        exit "$result"
+    }
+    trap cleanup EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    git worktree add --detach "$stage/tree" "$target"
+    # System Astal module links are shared read-only for compilation.
+    [ ! -d "$THEME/node_modules" ] || ln -s "$THEME/node_modules" "$stage/tree/node_modules"
+    "$stage/tree/scripts/preflight" "$stage/build"
+    [ -z "$(git status --porcelain --untracked-files=all)" ] || { err "Checkout changed during preflight"; exit 1; }
+    git merge --ff-only "$target"
+    activated=true
+    "$THEME/scripts/restart"
+    # Readiness is checked synchronously by restart. Publish commit last.
+    printf '%s\n' "$rv" > "$APPLIED.new"
+    printf '%s\n' "$target" > "$APPLIED_COMMIT.new"
+    mv -f "$APPLIED.new" "$APPLIED"
+    mv -f "$APPLIED_COMMIT.new" "$APPLIED_COMMIT"
+    committed=true
+    printf '%s\n' "$rv" > "$STAMP"
+    ok "Release $tag is running and healthy"
+)
 
 case "${1:-}" in
     check)      shift; cmd_check "${1:-}" ;;

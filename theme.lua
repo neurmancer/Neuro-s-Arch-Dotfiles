@@ -8,7 +8,6 @@ end
 
 hl.exec_cmd("dbus-update-activation-environment --systemd --all")
 hl.exec_cmd("sh -c 'sleep 3; hyprctl dispatch exec \"dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY XAUTHORITY XCURSOR_THEME XCURSOR_SIZE\"' &")
-hl.exec_cmd("killall -9 waybar mako dunst swaync 2>/dev/null; systemctl --user stop waybar mako dunst swaync 2>/dev/null || true")
 hl.exec_cmd(cyberpunk .. "/scripts/launch-theme")
 hl.exec_cmd(cyberpunk .. "/scripts/ws pin")
 local user_dir = (os.getenv("XDG_CONFIG_HOME") or (os.getenv("HOME") .. "/.config")) .. "/cyberarch"
@@ -115,12 +114,12 @@ if wmt.wmShadowAlpha and type(wm.wmShadowAlpha) == "number" then
     shadow_alpha = string.format("%02x", math.floor(wm.wmShadowAlpha * 2.55 + 0.5))
 end
 local opacity = 1
-if wm.wmOpacity == true and type(wm.wmOpacityVal) == "number" then opacity = wm.wmOpacityVal end
+local global_opacity = wm.wmOpacity == true and wm.wmOpacityMode ~= "only" and wm.wmOpacityMode ~= "except"
+if global_opacity and type(wm.wmOpacityVal) == "number" then opacity = wm.wmOpacityVal end
 local hex = function(v) return string.format("%02x", math.floor(v + 0.5)) end
 local rgba = function(c, a) return "rgba(" .. hex(c[1]) .. hex(c[2]) .. hex(c[3]) .. a .. ")" end
 local rgb = function(c) return "rgb(" .. hex(c[1]) .. hex(c[2]) .. hex(c[3]) .. ")" end
 
-hl.exec_cmd("mkdir -p " .. os.getenv("HOME") .. "/.config/kitty && ln -sfn " .. cyberpunk .. "/assets/kitty/kitty.conf " .. os.getenv("HOME") .. "/.config/kitty/kitty.conf")
 hl.exec_cmd("mkdir -p " .. os.getenv("HOME") .. "/.local/share/icons && ln -sfn " .. cyberpunk .. "/assets/gtk/iconpack " .. os.getenv("HOME") .. "/.local/share/icons/iconpack")
 hl.exec_cmd("gsettings set org.gnome.desktop.interface icon-theme 'iconpack'")
 hl.exec_cmd("ln -sfn " .. cyberpunk .. "/assets/cursor " .. os.getenv("HOME") .. "/.local/share/icons/neurodance")
@@ -157,7 +156,7 @@ hl.config({
         rounding = rounding,
         rounding_power = power,
         active_opacity = opacity,
-        inactive_opacity = math.max(0.5, opacity - 0.08),
+        inactive_opacity = global_opacity and math.max(0.5, opacity - 0.08) or 1,
         glow = {
             enabled = glow and border_size > 0,
             color = rgba(border_override or accent, "ff"),
@@ -211,17 +210,7 @@ local opwin = "^(Rename.*|Create New Folder|Create Folder|Create Document|Bulk R
 hl.window_rule({ match = { title = opwin }, float = true })
 hl.window_rule({ match = { title = opwin }, center = true })
 
-if wm.wmOpacity == true and type(wm.wmOpacityMode) == "string" and wm.wmOpacityMode ~= "off"
-    and type(wm.wmOpacityApps) == "string" and wm.wmOpacityApps ~= ""
-    and type(wm.wmOpacityVal) == "number" then
-    for app in string.gmatch(wm.wmOpacityApps, "[^,]+") do
-        local c = app:gsub("^%s+", ""):gsub("%s+$", "")
-        if c ~= "" then
-            local cls = wm.wmOpacityMode == "only" and ("(?i)^" .. c .. "$") or ("(?i)^((?!" .. c .. ").)*$")
-            hl.window_rule({ name = "cyberarch-wm", match = { class = cls }, opacity = wm.wmOpacityVal })
-        end
-    end
-end
+dofile(cyberpunk .. "/config/wm-opacity.lua")(wm)
 
 hl.config({ animations = { enabled = anim_master } })
 hl.curve("swiftOut", { type = "bezier", points = { {0.05, 0.7}, {0.1, 1.0} } })
