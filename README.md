@@ -1,4 +1,5 @@
-# Neuro's Arch Dotfiles
+# Neuro's Arch Dotfiles 
+> _Version: β_
 
 > Lowkey I wanna call it _NeurOS_ OwO
 

@@ -2,12 +2,23 @@
 set -euo pipefail
 
 AGS_BIN="${HOME}/.local/bin/ags"
-THEME_DIR="${HOME}/.config/hypr/themes/cyberpunk"
-[ -f "$THEME_DIR/core.ts" ] || THEME_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Resolve the script itself so invocation through the canonical symlink or a
+# separate script symlink always launches the checkout that owns this file.
+SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]}")"
+THEME_DIR="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd -P)"
 CORE_TS="$THEME_DIR/core.ts"
 
 [ -x "$AGS_BIN" ] || exit 1
 [ -f "$CORE_TS" ] || exit 1
+
+# Query the named instance on this user's session bus. Unrelated GJS processes
+# and stale socket files must not prevent the HUD from starting.
+if gdbus call --session --dest org.freedesktop.DBus \
+    --object-path /org/freedesktop/DBus \
+    --method org.freedesktop.DBus.NameHasOwner io.Astal.cyberpunk 2>/dev/null \
+    | grep -Fxq '(true,)'; then
+    exit 0
+fi
 
 runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 display="${WAYLAND_DISPLAY:-}"

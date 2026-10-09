@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -uo pipefail
-THEME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+THEME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 if [ "$(id -u)" = 0 ]; then
   if [ -n "${SUDO_USER:-}" ]; then
     exec runuser -u "$SUDO_USER" -- env -u SUDO_USER bash "$THEME/install.sh" "$@"
@@ -306,49 +306,6 @@ command -v hyprctl >/dev/null || warn "Hyprland not detected on PATH |::| instal
 DRYRUN=0
 if [ "${1:-}" = "--dry-run" ] || [ -n "${AUG_DRYRUN:-}" ]; then DRYRUN=1; fi
 
-[ "$DRYRUN" = 1 ] || sudo_prime
-
-hdr "SYSTEM UPGRADE"
-printf "[!] Run a full system upgrade before installing theme? (y/N) "
-read -r ans </dev/tty
-if [ "$ans" = "y" ] || [ "$ans" = "Y" ]; then
-  if sudo pacman -Syu; then
-    ok "system upgraded"
-  else
-    fatal "the full system upgrade flatlined halfway." \
-      "A half-synced deck is the #1 cause of qt6, quickshell and astal breaking later." \
-      "Finish it by hand and read the error:" \
-      "  sudo pacman -Syu" \
-      "If pacman talks about keys:  sudo pacman -Sy archlinux-keyring && sudo pacman -Syu" \
-      "If it talks about a file conflict, delete the file it names, then re-run the upgrade." \
-      "Reboot after it lands, then re-run:  ./install.sh"
-  fi
-else
-  ok "skipped |::| continuing to the installer."
-fi
-
-hdr "HYPRLAND CORE"
-sudo pacman -Sy >/dev/null 2>&1 || true
-CUR="$(pacman -Q hyprland 2>/dev/null | cut -d' ' -f2)"
-AVAIL="$(pacman -Si hyprland 2>/dev/null | sed -n 's/^Version[[:space:]]*:[[:space:]]*//p')"
-if [ -z "$CUR" ]; then
-  step "install latest Hyprland + lua tooling"
-  pac_install "Hyprland core" $HYP_PKGS
-elif [ -z "$AVAIL" ] || [ "$AVAIL" != "$CUR" ]; then
-  step "Hyprland is currently $CUR${AVAIL:+ — latest is $AVAIL}"
-  printf "[!] Update Hyprland + lua tooling to the latest version? (y/N) "
-  read -r ans </dev/tty
-  if [ "$ans" = "y" ] || [ "$ans" = "Y" ]; then
-    pac_install "Hyprland core" $HYP_PKGS
-    VER="$(hyprctl version 2>/dev/null | head -1)"
-    [ -n "$VER" ] && ok "Hyprland now |::| $VER"
-  else
-    warn "skipped |::| keeping Hyprland $CUR."
-  fi
-else
-  ok "Hyprland $CUR already up to date."
-fi
-
 hdr "DEPENDENCY SCAN"
 declare -a miss_repo=() miss_aur=()
 pkg_has() { pacman -Qq "$1" &>/dev/null || pacman -Qg "$1" &>/dev/null; }
@@ -362,23 +319,61 @@ for p in "${AUR[@]}"; do
 done
 mapfile -t miss_repo < <(printf '%s\n' "${miss_repo[@]}" | awk 'NF' | sort -u)
 mapfile -t miss_aur  < <(printf '%s\n' "${miss_aur[@]}"  | awk 'NF' | sort -u)
-if [ "${1:-}" = "--dry-run" ] || [ -n "${AUG_DRYRUN:-}" ]; then
+if [ "$DRYRUN" = 1 ]; then
+  printf "  ${CYAN}Hyprland core (installed if needed):${R} %s\n" "$HYP_PKGS"
   hdr "DRY RUN |::| no changes will be made"
   printf "  ${CYAN}repo:${R} %s\n  ${CYAN}aur :${R} %s\n" "${miss_repo[*]:-none}" "${miss_aur[*]:-none}"
   line; exit 0
 fi
 
 CANON="$HOME/.config/hypr/themes/cyberpunk"
-if [ "$THEME" != "$CANON" ]; then
-  hdr "THEME LOCATION"
-  if [ -e "$CANON" ] && [ ! -L "$CANON" ]; then
-    warn "$CANON already exists |::| the theme will run from THERE, not this clone."
+hdr "THEME LOCATION"
+source "$THEME/scripts/install-location.sh" || fatal "Could not load theme location checks."
+theme_location_prepare "$THEME" "$CANON" \
+  || fatal "Theme location setup failed; no package or desktop configuration changes were started."
+
+sudo_prime
+
+hdr "SYSTEM UPGRADE"
+printf "[!] Run a full system upgrade before installing theme? (y/N) "
+read -r ans </dev/tty || ans=""
+if [ "$ans" = "y" ] || [ "$ans" = "Y" ]; then
+  if sudo pacman -Syu; then
+    ok "system upgraded"
   else
-    mkdir -p "$(dirname "$CANON")"
-    if ln -sfn "$THEME" "$CANON"; then ok "linked $CANON → $THEME"
-    else err "could not link $CANON |::| move/clone this repo to $CANON manually."; fi
+    fatal "the full system upgrade flatlined halfway." \
+      "A half-synced deck is the #1 cause of qt6, quickshell and astal breaking later." \
+      "Finish it by hand and read the error:" \
+      "  sudo pacman -Syu" \
+      "If pacman talks about keys:  sudo pacman -Syu archlinux-keyring" \
+      "If it talks about a file conflict, delete the file it names, then re-run the upgrade." \
+      "Reboot after it lands, then re-run:  ./install.sh"
   fi
+else
+  ok "skipped |::| continuing to the installer."
 fi
+
+hdr "HYPRLAND CORE"
+CUR="$(pacman -Q hyprland 2>/dev/null | cut -d' ' -f2)"
+AVAIL="$(pacman -Si hyprland 2>/dev/null | sed -n 's/^Version[[:space:]]*:[[:space:]]*//p')"
+if [ -z "$CUR" ]; then
+  step "install latest Hyprland + lua tooling"
+  pac_install "Hyprland core" $HYP_PKGS
+elif [ -z "$AVAIL" ] || [ "$AVAIL" != "$CUR" ]; then
+  step "Hyprland is currently $CUR${AVAIL:+ — latest is $AVAIL}"
+  printf "[!] Update Hyprland + lua tooling to the latest version? (y/N) "
+  read -r ans </dev/tty || ans=""
+  if [ "$ans" = "y" ] || [ "$ans" = "Y" ]; then
+    pac_install "Hyprland core" $HYP_PKGS
+    VER="$(hyprctl version 2>/dev/null | head -1)"
+    [ -n "$VER" ] && ok "Hyprland now |::| $VER"
+  else
+    warn "skipped |::| keeping Hyprland $CUR."
+  fi
+else
+  ok "Hyprland $CUR already up to date."
+fi
+
 
 if [ ${#miss_repo[@]} -gt 0 ] || [ ${#miss_aur[@]} -gt 0 ]; then
   hdr "MISSING PACKAGES"
@@ -486,13 +481,8 @@ fi
 hdr "LOGIN SCREEN"
 LOGINSRC="$THEME/components/login"
 LOGINDST="$CANON/components/login"
-if [ "$THEME" != "$CANON" ]; then
-  mkdir -p "$LOGINDST"
-  cp -rf "$LOGINSRC"/* "$LOGINDST"/
-  ok "login theme copied → $LOGINDST"
-else
-  LOGINDST="$LOGINSRC"
-fi
+# CANON has been verified to resolve to THEME; these are the same files.
+
 if [ -f "$THEME/assets/wallpapers/netwatch/main.mp4" ]; then
   cp -f "$THEME/assets/wallpapers/netwatch/main.mp4" "$LOGINDST/themes/netwatch/bg.mp4"
 fi
@@ -510,11 +500,6 @@ if [ -d "$HOME/.local/share/cyberdeck" ]; then
       ok "migrated $f → $USER_DIR/$f"
     fi
   done
-fi
-mkdir -p "$CANON/assets/img"
-if [ -f "$THEME/assets/img/lucy_wallpaper.png" ]; then
-  cp -f "$THEME/assets/img/lucy_wallpaper.png" "$CANON/assets/img/lucy_wallpaper.png"
-  ok "static fallback deployed → $CANON/assets/img/lucy_wallpaper.png"
 fi
 if [ -d "$THEME/assets/wallpapers" ]; then
   cp -rn "$THEME/assets/wallpapers/." "$WALLPAPERS_PATH/"
@@ -536,24 +521,131 @@ else
 fi
 chmod +x "$LOGINDST/lock.sh" 2>/dev/null
 IDLECONF="$HOME/.config/hypr/hypridle.conf"
+
+PAMFILE="/etc/pam.d/qs-lock"
+SDDM_THEME_NAME="netwatch"
+SDDM_DROPIN="/etc/sddm.conf.d/10-${SDDM_THEME_NAME}.conf"
+SDDM_X11_FIX="/etc/sddm.conf.d/20-greeter-x11.conf"
+SDDM_THEME_DIR="/usr/share/sddm/themes/${SDDM_THEME_NAME}"
+LOGIN_DM_LINK="/etc/systemd/system/display-manager.service"
+source "$THEME/scripts/install-login.sh"
+if [ "$LOCK_STACK" = 1 ]; then
+  login_begin "$IDLECONF" "$PAMFILE" "$HOME/.config/qylock/theme" \
+    "$SDDM_DROPIN" "$SDDM_X11_FIX" "$SDDM_THEME_DIR" "$LOGIN_DM_LINK" \
+    || fatal "Could not back up login configuration; login setup was not started."
+fi
+
+hdr "QUICKSHELL · login"
+qs_ok() { command -v qs >/dev/null 2>&1 && qs --version >/dev/null 2>&1; }
+
+
+lock_proto_state() {
+  if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && command -v wayland-info >/dev/null 2>&1; then
+    probe="$(as_user_env wayland-info 2>/dev/null)"
+    if [ -n "$probe" ] && printf '%s' "$probe" | grep -q "hyprland_"; then
+      if printf '%s' "$probe" | grep -q "ext_session_lock_manager_v1"; then printf 'yes'; else printf 'no'; fi
+      return 0
+    fi
+  fi
+  local hv maj min
+  hv="$(pacman -Q hyprland 2>/dev/null | awk '{print $2}' | grep -oE '^[0-9]+\.[0-9]+' | head -1 || true)"
+  if [ -n "$hv" ]; then
+    maj="$((10#${hv%%.*}))"; min="$((10#${hv#*.}))"
+    if [ "$maj" -gt 0 ] || [ "$min" -ge 35 ]; then printf 'yes'; else printf 'no'; fi
+    return 0
+  fi
+  printf 'unknown'
+}
+
 if [ "$LOCK_STACK" != 1 ]; then
-  warn "hypridle lock_cmd left alone |::| $CUR_DM keeps owning the lock"
+  warn "theme lock skipped |::| no quickshell, no PAM rewrite, $CUR_DM untouched"
 else
-  mkdir -p "$HOME/.config/qylock"
-  [ -f "$HOME/.config/qylock/theme" ] || echo "netwatch" > "$HOME/.config/qylock/theme"
-  if [ -f "$IDLECONF" ]; then
-    sed -i "s#^\( *\)lock_cmd[[:space:]]*=.*#\1lock_cmd = $LOGINDST/lock.sh#" "$IDLECONF"
-    grep -q "^lock_cmd = $LOGINDST/lock.sh" "$IDLECONF" \
-      || sed -i "/^general {/a\\  lock_cmd = $LOGINDST/lock.sh" "$IDLECONF"
-    grep -q "lock_cmd = $LOGINDST/lock.sh" "$IDLECONF" \
-      && ok "hypridle lock_cmd → $LOGINDST/lock.sh" \
-      || warn "hypridle lock_cmd refused the rewrite |::| eyeball $IDLECONF by hand"
+  QT6="glibc lib32-glibc qt6-multimedia qt6-multimedia-ffmpeg qt6-base qt6-declarative qt6-svg qt6-wayland qt6-5compat"
+  pac_install "qt6 runtime" $QT6
+  if ! qs_ok; then
+    step "installing quickshell"
+    sudo pacman -S --needed quickshell || warn "repo quickshell flatlined |::| dropping to the AUR build"
+  fi
+  if ! qs_ok; then
+    helper="$(command -v paru || command -v yay || true)"
+    if [ -n "$helper" ]; then
+      step "trying quickshell-git (may fail if qt6 is misaligned)"
+      "$helper" -S --needed quickshell-git || warn "quickshell-git build failed."
+    else
+      warn "no AUR helper (paru/yay) |::| cannot build quickshell-git"
+    fi
+  fi
+  if qs_ok; then
+    ok "quickshell ready ($(qs --version 2>/dev/null | head -1 | cut -d' ' -f1-2))"
   else
-    mkdir -p "$(dirname "$IDLECONF")"
-    printf 'general {\n  lock_cmd = %s/lock.sh\n  before_sleep_cmd = loginctl lock-session\n}\n' "$LOGINDST" > "$IDLECONF"
-    ok "created $IDLECONF with lock_cmd → $LOGINDST/lock.sh"
+    fatal "quickshell could NOT be installed — the lock screen has no runtime." \
+      "Every path was tried: repo quickshell, then quickshell-git from the AUR." \
+      "That combo only fails on a half-synced deck where qt6 versions disagree." \
+      "Sync the whole system first:  sudo pacman -Syu   then reboot" \
+      "Then build it:  paru -S quickshell-git" \
+      "The greeter and lock command have not been changed." \
+      "Re-run ./install.sh when qs --version answers."
+  fi
+
+  if [ -f "$PAMFILE" ]; then
+    ok "PAM service present ($PAMFILE)"
+  else
+    step "creating $PAMFILE (auth → system-auth)…"
+    if sudo tee "$PAMFILE" >/dev/null <<'PAMEOF'
+auth      include   system-auth
+account   include   system-auth
+password  include   system-auth
+session   include   system-auth
+PAMEOF
+    then ok "lockscreen auth wired (qs-lock → system-auth)"
+    else
+      fatal "could not write $PAMFILE — the lock screen would reject your own password." \
+        "No PAM stack means every unlock attempt fails and you get stuck on the lock surface." \
+        "Write it yourself:" \
+        "  printf 'auth      include   system-auth\\naccount   include   system-auth\\npassword  include   system-auth\\nsession   include   system-auth\\n' | sudo tee $PAMFILE" \
+        "Then re-run:  ./install.sh"
+    fi
+  fi
+
+  case "$(lock_proto_state)" in
+    yes) ok "compositor exposes ext-session-lock-v1" ;;
+    no)
+      fatal "your compositor does not expose ext-session-lock-v1 — the lock would come up black." \
+        "quickshell grabs that protocol to paint the lock surface. Without it you get a dead screen you cannot type into." \
+        "On Hyprland:  sudo pacman -S hyprland   (0.35+ carries it), then log out and back in." \
+        "On any other compositor: keep its own locker and answer N at the greeter prompt next run." \
+        "The existing lock command has not been changed."
+      ;;
+    *) warn "could not ask the compositor about ext-session-lock-v1 |::| check inside Hyprland with: wayland-info | grep ext_session_lock" ;;
+  esac
+
+  if qs_ok; then
+    # fixed issue of hyprlock crashes cus qs lock grabs a WlSessionLocks which crashes hyprland
+    if [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${DISPLAY:-}" ]; then
+      step "smoke testing quickshell login…"
+      QS_LOG=$(mktemp)
+      QS_LOGIN_DIR="$LOGINDST"
+      timeout 4 env QS_TESTING=1 QS_THEME="netwatch" QS_THEME_PATH="$QS_LOGIN_DIR/themes/netwatch" QT_MEDIA_BACKEND=ffmpeg qs -p "$QS_LOGIN_DIR/lock_shell.qml" >"$QS_LOG" 2>&1 &
+      QS_PID=$!
+      sleep 3
+      kill "$QS_PID" 2>/dev/null; wait "$QS_PID" 2>/dev/null
+      QS_ERRORS=$(grep -iE "error|cannot|missing|not found|module.*not" "$QS_LOG" 2>/dev/null || true)
+      rm -f "$QS_LOG"
+      if [ -n "$QS_ERRORS" ]; then
+        mapfile -t QS_ERRLINES < <(printf "%s\n" "$QS_ERRORS" | head -5)
+        fatal "quickshell login shell failed its smoke test — the lock screen would crash." \
+          "Shell: $QS_LOGIN_DIR/lock_shell.qml   theme: netwatch" \
+          "${QS_ERRLINES[@]}" \
+          "A lock screen that errors out can wedge the session, so this is a hard stop."
+      else
+        ok "quickshell login verified"
+      fi
+    else
+      ok "quickshell present |::| skipping live QML smoke test (inside a running compositor)"
+    fi
   fi
 fi
+
 
 hdr "SDDM · display manager"
 if [ "$LOCK_STACK" != 1 ]; then
@@ -583,38 +675,33 @@ if [ "$LOCK_STACK" = 1 ] && command -v sddm >/dev/null 2>&1; then
       "fix it raw, then re-run:" \
       "  sudo usermod -aG video,render sddm"
   fi
-  SDDM_THEME_NAME="netwatch"
-  SDDM_DROPIN="/etc/sddm.conf.d/10-${SDDM_THEME_NAME}.conf"
   if command -v ffmpeg >/dev/null 2>&1 && [ -f "$LOGINSRC/sddm-theme/bg.mp4" ] && { [ ! -f "$LOGINSRC/sddm-theme/fallback.jpg" ] || [ "$LOGINSRC/sddm-theme/bg.mp4" -nt "$LOGINSRC/sddm-theme/fallback.jpg" ]; }; then
     ffmpeg -y -loglevel error -i "$LOGINSRC/sddm-theme/bg.mp4" -frames:v 1 -q:v 3 "$LOGINSRC/sddm-theme/fallback.jpg" >/dev/null 2>&1 \
       && ok "greeter fallback frame extracted → fallback.jpg" \
       || warn "could not extract a fallback frame |::| gpu-less decks get a flat greeter"
   fi
-  SDDM_THEME_DIR="/usr/share/sddm/themes/${SDDM_THEME_NAME}"
   if sudo install -d -m 755 "$SDDM_THEME_DIR" && sudo cp -rf "$LOGINSRC/sddm-theme"/. "$SDDM_THEME_DIR"/; then
     ok "sddm theme deployed → $SDDM_THEME_DIR"
   else
-    sudo rm -f "$SDDM_DROPIN"
     fatal "the ${SDDM_THEME_NAME} sddm theme could not be deployed." \
-      "the netwatch drop-in was pulled back out, so no config points at a missing theme." \
+      "Previous login configuration will be restored on exit." \
       "Deploy it by hand:" \
       "  sudo install -d -m 755 $SDDM_THEME_DIR" \
       "  sudo cp -rf '$LOGINSRC/sddm-theme'/. $SDDM_THEME_DIR/" \
-      "Your greeter was NOT switched yet, so nothing about your login changed."
+      "The display manager has not been switched yet."
   fi
   step "configuring sddm → ${SDDM_THEME_NAME} theme…"
   if sudo install -d -m 755 /etc/sddm.conf.d \
      && printf '[Theme]\nCurrent=%s\n' "$SDDM_THEME_NAME" | sudo tee "$SDDM_DROPIN" >/dev/null; then
     ok "sddm configured → $SDDM_DROPIN"
   else
-    warn "could not write $SDDM_DROPIN |::| the greeter may come up stock"
+    fatal "Could not write $SDDM_DROPIN; restoring previous login settings."
   fi
-  SDDM_X11_FIX="/etc/sddm.conf.d/20-greeter-x11.conf"
   if sudo install -d -m 755 /etc/sddm.conf.d \
      && printf '[General]\nDisplayServer=x11\n' | sudo tee "$SDDM_X11_FIX" >/dev/null; then
     ok "greeter pinned to x11 → $SDDM_X11_FIX |::| dodges the kwin_wayland HELPER_TTY_ERROR loop"
   else
-    warn "could not pin the greeter to x11 |::| wayland greeters may loop on HELPER_TTY_ERROR"
+    fatal "Could not write $SDDM_X11_FIX; restoring previous login settings."
   fi
   if sudo install -d -m 755 -o "${SUDO_USER:-$(id -un)}" -g "$(id -gn "${SUDO_USER:-$(id -un)}")" "$SDDM_THEME_DIR/current"; then
     if ! ls "$SDDM_THEME_DIR/current"/image.* >/dev/null 2>&1 && ! ls "$SDDM_THEME_DIR/current"/video.* >/dev/null 2>&1; then
@@ -649,15 +736,24 @@ if [ "$LOCK_STACK" = 1 ] && command -v sddm >/dev/null 2>&1; then
   else
     warn "could not create $SDDM_THEME_DIR/current |::| sddm falls back to the theme's bg.mp4"
   fi
+  mkdir -p "$HOME/.config/qylock" || fatal "Could not create lock theme directory."
+  if [ ! -f "$HOME/.config/qylock/theme" ]; then
+    echo "netwatch" > "$HOME/.config/qylock/theme" || fatal "Could not select lock theme."
+  fi
+  login_write_idle "$IDLECONF" "$LOGINDST/lock.sh" \
+    || fatal "Could not configure hypridle; restoring previous login settings."
+  ok "hypridle lock_cmd → $LOGINDST/lock.sh"
+
   DMLINK="$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null || true)"
   case "$DMLINK" in
     */sddm.service) ok "sddm is already the default display manager" ;;
     *)
+      LOGIN_DM_CHANGED=1
       step "releasing the seat from the old greeter…"
       if release_seat; then
         ok "old greeter ghosted for next boot |::| the live one gets put down at the logout handoff"
       else
-        warn "some old greeter bits wouldnt ghost |::| enable --force below muscles the alias anyway"
+        fatal "Could not disable the previous greeter; restoring previous login settings."
       fi
       step "enabling sddm as default display manager…"
       SDDM_ERR="$(sudo systemctl enable --force sddm 2>&1)"
@@ -672,13 +768,19 @@ if [ "$LOCK_STACK" = 1 ] && command -v sddm >/dev/null 2>&1; then
             "  sudo systemctl disable ${DM_OLD:-<your-current-greeter>}.service" \
             "  sudo systemctl enable --force sddm" \
             "Then verify:  systemctl status display-manager.service" \
-            "Your existing greeter is still enabled, so you are not locked out."
+            "Previous display-manager enablement and login files will be restored on exit."
           ;;
       esac
       ;;
   esac
 else
-  warn "sddm step skipped |::| no greeter or theme lock changes were made"
+  [ "$LOCK_STACK" != 1 ] || fatal "sddm is unavailable; restoring previous login settings."
+  warn "sddm step skipped |::| existing greeter retained"
+fi
+
+if [ "$LOCK_STACK" = 1 ]; then
+  login_commit
+  ok "login configuration installed"
 fi
 
 step "installing news cache cron for sddm ticker…"
@@ -715,132 +817,6 @@ if [ "$ans" = "y" ] || [ "$ans" = "Y" ]; then
   fi
 else
   warn "pacman hook skipped |::| re-run ./install.sh to add it later"
-fi
-
-hdr "QUICKSHELL · login"
-QS_LOGIN_OK=1
-qs_ok() { command -v qs >/dev/null 2>&1 && qs --version >/dev/null 2>&1; }
-
-
-lock_proto_state() {
-  if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && command -v wayland-info >/dev/null 2>&1; then
-    probe="$(as_user_env wayland-info 2>/dev/null)"
-    if [ -n "$probe" ] && printf '%s' "$probe" | grep -q "hyprland_"; then
-      if printf '%s' "$probe" | grep -q "ext_session_lock_manager_v1"; then printf 'yes'; else printf 'no'; fi
-      return 0
-    fi
-  fi
-  local hv maj min
-  hv="$(pacman -Q hyprland 2>/dev/null | awk '{print $2}' | grep -oE '^[0-9]+\.[0-9]+' | head -1 || true)"
-  if [ -n "$hv" ]; then
-    maj="$((10#${hv%%.*}))"; min="$((10#${hv#*.}))"
-    if [ "$maj" -gt 0 ] || [ "$min" -ge 35 ]; then printf 'yes'; else printf 'no'; fi
-    return 0
-  fi
-  printf 'unknown'
-}
-
-if [ "$LOCK_STACK" != 1 ]; then
-  QS_LOGIN_OK=0
-  warn "theme lock skipped |::| no quickshell, no PAM rewrite, $CUR_DM untouched"
-else
-  QT6="glibc lib32-glibc qt6-multimedia qt6-multimedia-ffmpeg qt6-base qt6-declarative qt6-svg qt6-wayland qt6-5compat"
-  pac_install "qt6 runtime" $QT6
-  if ! qs_ok; then
-    step "installing quickshell"
-    sudo pacman -S --needed quickshell || warn "repo quickshell flatlined |::| dropping to the AUR build"
-  fi
-  if ! qs_ok; then
-    helper="$(command -v paru || command -v yay || true)"
-    if [ -n "$helper" ]; then
-      step "trying quickshell-git (may fail if qt6 is misaligned)"
-      "$helper" -S --needed quickshell-git || warn "quickshell-git build failed."
-    else
-      warn "no AUR helper (paru/yay) |::| cannot build quickshell-git"
-    fi
-  fi
-  if qs_ok; then
-    ok "quickshell ready ($(qs --version 2>/dev/null | head -1 | cut -d' ' -f1-2))"
-  else
-    fatal "quickshell could NOT be installed — the lock screen has no runtime." \
-      "Every path was tried: repo quickshell, then quickshell-git from the AUR." \
-      "That combo only fails on a half-synced deck where qt6 versions disagree." \
-      "Sync the whole system first:  sudo pacman -Syu   then reboot" \
-      "Then build it:  paru -S quickshell-git" \
-      "Your greeter and lock config were left alone, so nothing is broken yet." \
-      "Re-run ./install.sh when qs --version answers."
-  fi
-
-  PAMFILE="/etc/pam.d/qs-lock"
-  if [ -f "$PAMFILE" ]; then
-    ok "PAM service present ($PAMFILE)"
-  else
-    step "creating $PAMFILE (auth → system-auth)…"
-    if sudo tee "$PAMFILE" >/dev/null <<'PAMEOF'
-auth      include   system-auth
-account   include   system-auth
-password  include   system-auth
-session   include   system-auth
-PAMEOF
-    then ok "lockscreen auth wired (qs-lock → system-auth)"
-    else
-      fatal "could not write $PAMFILE — the lock screen would reject your own password." \
-        "No PAM stack means every unlock attempt fails and you get stuck on the lock surface." \
-        "Write it yourself:" \
-        "  printf 'auth      include   system-auth\\naccount   include   system-auth\\npassword  include   system-auth\\nsession   include   system-auth\\n' | sudo tee $PAMFILE" \
-        "Then re-run:  ./install.sh"
-    fi
-  fi
-
-  case "$(lock_proto_state)" in
-    yes) ok "compositor exposes ext-session-lock-v1" ;;
-    no)
-      if [ -f "$IDLECONF" ] && grep -q "lock.sh" "$IDLECONF"; then
-        sed -i "\#lock_cmd = $LOGINDST/lock.sh#d" "$IDLECONF"
-        warn "pulled the theme lock_cmd back out of $IDLECONF so idle cannot black your screen"
-      fi
-      fatal "your compositor does not expose ext-session-lock-v1 — the lock would come up black." \
-        "quickshell grabs that protocol to paint the lock surface. Without it you get a dead screen you cannot type into." \
-        "On Hyprland:  sudo pacman -S hyprland   (0.35+ carries it), then log out and back in." \
-        "On any other compositor: keep its own locker and answer N at the greeter prompt next run." \
-        "The theme lock_cmd was already removed above, so your idle behaviour is back to stock."
-      ;;
-    *) warn "could not ask the compositor about ext-session-lock-v1 |::| check inside Hyprland with: wayland-info | grep ext_session_lock" ;;
-  esac
-
-  if qs_ok; then
-    # fixed issue of hyprlock crashes cus qs lock grabs a WlSessionLocks which crashes hyprland
-    if [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${DISPLAY:-}" ]; then
-      step "smoke testing quickshell login…"
-      QS_LOG=$(mktemp)
-      QS_LOGIN_DIR="$LOGINDST"
-      timeout 4 env QS_TESTING=1 QS_THEME="netwatch" QS_THEME_PATH="$QS_LOGIN_DIR/themes/netwatch" QT_MEDIA_BACKEND=ffmpeg qs -p "$QS_LOGIN_DIR/lock_shell.qml" >"$QS_LOG" 2>&1 &
-      QS_PID=$!
-      sleep 3
-      kill "$QS_PID" 2>/dev/null; wait "$QS_PID" 2>/dev/null
-      QS_ERRORS=$(grep -iE "error|cannot|missing|not found|module.*not" "$QS_LOG" 2>/dev/null || true)
-      rm -f "$QS_LOG"
-      if [ -n "$QS_ERRORS" ]; then
-        mapfile -t QS_ERRLINES < <(printf "%s\n" "$QS_ERRORS" | head -5)
-        fatal "quickshell login shell failed its smoke test — the lock screen would crash." \
-          "Shell: $QS_LOGIN_DIR/lock_shell.qml   theme: netwatch" \
-          "${QS_ERRLINES[@]}" \
-          "A lock screen that errors out can wedge the session, so this is a hard stop."
-      else
-        ok "quickshell login verified"
-      fi
-    else
-      ok "quickshell present |::| skipping live QML smoke test (inside a running compositor)"
-    fi
-  fi
-fi
-
-if [ "$LOCK_STACK" != 1 ]; then
-  warn "login screen untouched |::| $CUR_DM and its own locker stay in charge"
-elif [ "$QS_LOGIN_OK" -eq 0 ]; then
-  err "login screen may not work |::| check the errors above"
-else
-  ok "login screen ready"
 fi
 
 hdr "COOL-RETRO-TERM · netrunner profile"
