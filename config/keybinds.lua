@@ -2,6 +2,7 @@ local cyberpunk = os.getenv("HOME") .. "/.config/hypr/themes/cyberpunk"
 local augSock   = os.getenv("XDG_RUNTIME_DIR") .. "/astal/cyberpunk.sock"
 
 local USER_LUA = os.getenv("HOME") .. "/.config/hypr/user.lua"
+local windowOpacity = dofile(cyberpunk .. "/config/window-opacity.lua")
 
 CD = CD or {}
 CD.defaultMod = "SUPER + SHIFT"
@@ -239,6 +240,8 @@ for i = 1, 10 do
 end
 
 CD.actions = {
+    { id="hud.palettenext", label="NEXT PALETTE", mod="SUPER + ALT", key="P", group="deck", run=sock("palette-next") },
+    { id="hud.paletteprev", label="PREVIOUS PALETTE", mod="SUPER + ALT + SHIFT", key="P", group="deck", run=sock("palette-prev") },
     { id="hud.toggle",   label="TOGGLE HUD",          mod="@themeMod", key="Z",         group="deck", run=sock("toggle-hud") },
     { id="hud.vol",      label="VOLUME",              mod="@themeMod", key="V",         group="deck", run=sock("modal vol") },
     { id="hud.brt",      label="BRIGHTNESS",          mod="@themeMod", key="I",         group="deck", run=sock("modal brt") },
@@ -269,6 +272,8 @@ CD.actions = {
     { id="win.full",     label="FULL SCREEN",   mod="SUPER + SHIFT", key="F",     group="win", run=hl.dsp.window.fullscreen({ mode = "fullscreen" }) },
     { id="win.float",    label="TOGGLE FLOAT",  mod="SUPER",         key="F",     group="win", run=hl.dsp.window.float({ action = "toggle" }) },
     { id="win.close",    label="CLOSE WINDOW",  mod="SUPER",         key="Q",     group="win", run=hl.dsp.window.close() },
+    { id="win.opacityup", label="OPACITY UP",   mod="SUPER + ALT",   key="Page_Up", group="win", run=windowOpacity(0.05) },
+    { id="win.opacitydown", label="OPACITY DOWN", mod="SUPER + ALT", key="Page_Down", group="win", run=windowOpacity(-0.05) },
     { id="win.fleft",    label="FOCUS LEFT",    mod="SUPER",         key="left",  group="win", run=hl.dsp.focus({ direction = "left" }) },
     { id="win.fright",   label="FOCUS RIGHT",   mod="SUPER",         key="right", group="win", run=hl.dsp.focus({ direction = "right" }) },
     { id="win.fup",      label="FOCUS UP",      mod="SUPER",         key="up",    group="win", run=hl.dsp.focus({ direction = "up" }) },

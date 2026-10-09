@@ -9,7 +9,8 @@ import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import Gdk from "gi://Gdk?version=3.0"
 import { COMPONENTS_DIR, CYBER_DIR, SCREEN_WIDTH, SCREEN_HEIGHT, scaleOf } from "./env.ts"
-import { loadUserColors } from "./components/modules/colors.ts"
+import { loadUserColors, PALETTES, getActivePalette } from "./components/modules/colors.ts"
+import { applyColors } from "./components/modules/themesettings.ts"
 import { applyWmRules, applyWmFromTheme } from "./components/modules/wmconfig.ts"
 import { Monitors, setWorkspaceBadge } from "./components/modules/monitors.ts"
 import { SidePanel, openCityModal, openForecastModal } from "./components/modules/sidepanel.ts"
@@ -298,7 +299,18 @@ App.start({
  requestHandler(request, res) {
  request = request.trim()
  const reply = (r) => { try { res(r) } catch {} }
- if (request === "launcher") {
+ if (request === "palette-current") {
+ reply(getActivePalette())
+ } else if (request === "palette-next" || request === "palette-prev") {
+ try {
+ const names = Object.keys(PALETTES)
+ const direction = request === "palette-next" ? 1 : -1
+ const name = names[(names.indexOf(getActivePalette()) + direction + names.length) % names.length]
+ applyColors(name)
+ showToast(`THEME: ${name}`)
+ reply("ok")
+ } catch (e) { print(e); reply("err") }
+ } else if (request === "launcher") {
  execAsync(["sh", "-c", "rofi -show drun || rofi -show run"]).catch(print)
  reply("ok")
  } else if (request === "apps-menu") {

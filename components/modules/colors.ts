@@ -639,6 +639,8 @@ const applyShellTheme = (name: string) => {
 }
 
 let curPalette = "NETWATCH"
+// Unlike color matching, this preserves the selected preset after custom edits.
+export const getActivePalette = (): string => curPalette
 
 const applyDerived = (name: string) => {
     curPalette = name
