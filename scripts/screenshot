@@ -1,0 +1,36 @@
+#!/usr/bin/bash
+AUDIO="$(cd "$(dirname "$0")/../assets/audio" && pwd)"
+MON_HELPER="$(cd "$(dirname "$0")" && pwd)/active-monitor"
+. "$(cd "$(dirname "$0")" && pwd)/cfg.sh"
+active_snd() {
+    snd_on sndOverlay || return 0
+    P=$(snd_path sndOverlayFile "$AUDIO/active.ogg")
+    setsid -f sh -c "play -q -v 1.5 \"$P\" 2>/dev/null || mpv --no-video --really-quiet --volume=150 \"$P\" 2>/dev/null" >/dev/null 2>&1
+}
+fail() {
+    printf 'Screenshot: %s\n' "$1" >&2
+    notify-send "Screenshot failed" "$1" 2>/dev/null || true
+    exit 1
+}
+request() {
+    local reply
+    reply=$(timeout --kill-after=1s 3s astal -i cyberpunk "$1") || return 1
+    [ "$reply" = "ok" ]
+}
+MON_DATA=$("$MON_HELPER") || fail "Cannot determine the active monitor"
+read -r MON MX MY MW MH <<< "$MON_DATA"
+
+if [ "${1:-}" = "full" ]; then
+    D="$HOME/Pictures/Screenshots"; mkdir -p "$D" || fail "Cannot create screenshot directory"
+    F="$D/$(date +%Y-%m-%d_%H-%M-%S).png"
+    grim -o "$MON" "$F" || fail "Capture failed"
+    wl-copy < "$F" || fail "Saved to $F, but copying to the clipboard failed"
+    active_snd
+    request "shutter $MX $MY $MW $MH" || true
+    command -v notify-send >/dev/null 2>&1 && \
+        notify-send -t 2500 "Screenshot" "$MON saved & copied" -i "$F"
+else
+    # the drag-to-select region picker is handled over in AGS 
+    request "region-shot $MX $MY $MW $MH" || fail "The shell did not open the region picker; it may need restarting"
+    active_snd
+fi
