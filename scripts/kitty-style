@@ -9,6 +9,9 @@ EXTRA="${2:-${XDG_CONFIG_HOME:-$HOME/.config}/cyberarch/kitty_themes}"
 [ -f "$SRC" ] || SRC="$EXTRA/$STYLE.toml"
 python3 "$DIR/theme-config.py" kitty "$SRC" "$KITTY_DIR/kitty.conf"
 printf '%s\n' "$STYLE" > "$KITTY_DIR/.kitty-style"
+# Fish owns command syntax colors. Install the prompt hook for new shells.
+install -Dm644 "$DIR/../assets/fish/conf.d/neuros-kitty-colors.fish" \
+    "${XDG_CONFIG_HOME:-$HOME/.config}/fish/conf.d/neuros-kitty-colors.fish"
 # Kitty's documented reload signal updates open windows without remote control.
 # No running instances is normal; the include also applies to future windows.
 pkill -USR1 -u "$(id -u)" -x kitty 2>/dev/null || true
