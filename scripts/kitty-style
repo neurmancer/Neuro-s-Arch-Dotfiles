@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+STYLE="${1:-cybercore}"
+[[ "$STYLE" =~ ^[a-zA-Z0-9_-]+$ ]] || exit 2
+DIR="$(cd "$(dirname "$0")" && pwd)"
+SRC="${CYBER_DIR:-$(dirname "$DIR")}/assets/rio/styles/$STYLE.toml"
+KITTY_DIR="${KITTY_CONFIG_DIRECTORY:-${XDG_CONFIG_HOME:-$HOME/.config}/kitty}"
+python3 "$DIR/theme-config.py" kitty "$SRC" "$KITTY_DIR/kitty.conf"
+# Kitty's documented reload signal updates open windows without remote control.
+# No running instances is normal; the include also applies to future windows.
+pkill -USR1 -u "$(id -u)" -x kitty 2>/dev/null || true

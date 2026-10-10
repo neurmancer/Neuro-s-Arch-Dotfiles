@@ -6,7 +6,7 @@ set -eu
 export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
 [ "$XDG_SESSION_TYPE" = wayland ] || { echo "qylock requires Wayland" >&2; exit 1; }
 lock_root="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-[ -d "$lock_root" ] && [ -O "$lock_root" ] || exit 1
+[ -d "$lock_root" ] && [ -O "$lock_root" ] && [ ! -L "$lock_root" ] || exit 1
 umask 077
 lock_session="${HYPRLAND_INSTANCE_SIGNATURE:-${WAYLAND_DISPLAY:-default}}"
 lock_session="${lock_session//[^a-zA-Z0-9_.-]/_}"
@@ -16,14 +16,17 @@ command -v quickshell >/dev/null || { echo "quickshell is missing; keeping any e
 [ -r "$DIR/lock_shell.qml" ] || exit 1
 export QT_MEDIA_BACKEND=ffmpeg
 QS_USER_THEME=""
-[ -r "$HOME/.config/qylock/theme" ] && read -r QS_USER_THEME < "$HOME/.config/qylock/theme"
-if [ -n "$QS_USER_THEME" ] && [ -d "$DIR/themes/$QS_USER_THEME" ]; then
+theme_file="${XDG_CONFIG_HOME:-$HOME/.config}/qylock/theme"
+if [ -r "$theme_file" ]; then read -r QS_USER_THEME < "$theme_file" || true; fi
+if [[ "$QS_USER_THEME" =~ ^[a-zA-Z0-9_-]+$ ]] && [ -r "$DIR/themes/$QS_USER_THEME/Main.qml" ]; then
     export QS_THEME="$QS_USER_THEME"
 else
     export QS_THEME="netwatch"
 fi
 export QS_THEME_PATH="$DIR/themes/$QS_THEME"
 export QS_PAM_CONFIG="qs-lock"
+# Refuse to claim a working locker without its authentication policy.
+[ -r /etc/pam.d/qs-lock ] || { echo "Missing /etc/pam.d/qs-lock; run login setup" >&2; exit 1; }
 export XCURSOR_THEME="neurodance"
 export XCURSOR_SIZE=48
 

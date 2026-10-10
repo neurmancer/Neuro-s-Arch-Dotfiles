@@ -7,11 +7,20 @@ flock -w 45 9 || exit 1
 AGS_BIN="${AGS_BIN:-$HOME/.local/bin/ags}"
 [ -x "$AGS_BIN" ] || AGS_BIN="$(command -v ags)"
 export AGS_BIN
+# Adopt a running pre-upgrade supervisor's build only after a readiness probe.
+current="$(readlink -f "$CYBER_RUNTIME/current" 2>/dev/null || true)"
+response="$(timeout 2 astal -i cyberpunk health 2>/dev/null || true)"
+if [ -n "$current" ] && [ "$response" = "$current" ]; then
+    pointer="$(mktemp -u "$CYBER_RUNTIME/healthy.XXXXXX")"
+    ln -s "$current" "$pointer"
+    mv -Tf "$pointer" "$CYBER_RUNTIME/healthy"
+fi
+rollback="$(readlink -f "$CYBER_RUNTIME/healthy" 2>/dev/null || true)"
 # No interruption occurs unless both the JS bundle and CSS compile.
 "$DIR/launch-theme" --prepare
 expected="$(readlink -f "$CYBER_RUNTIME/current")"
 start() {
-    "$AGS_BIN" quit -i cyberpunk >/dev/null 2>&1 || true
+    timeout 5 "$AGS_BIN" quit -i cyberpunk >/dev/null 2>&1 || true
     # The existing supervisor restarts after quit; otherwise start one.
     setsid "$DIR/launch-theme" 9>&- >/dev/null 2>&1 </dev/null &
 }
@@ -20,17 +29,28 @@ ready() {
     for _ in $(seq 1 60); do
         response="$(timeout 2 astal -i cyberpunk health 2>/dev/null || true)"
         [ "$response" = "$1" ] && return 0
+        # A supervisor may be exiting after its final crash retry, or a legacy
+        # instance may still be quitting. Retry acquiring supervision safely.
+        if (( _ % 8 == 0 )); then
+            setsid "$DIR/launch-theme" 9>&- >/dev/null 2>&1 </dev/null &
+        fi
         sleep 0.25
     done
     return 1
 }
 start
-if ready "$expected"; then exit 0; fi
+if ready "$expected"; then
+    pointer="$(mktemp -u "$CYBER_RUNTIME/healthy.XXXXXX")"
+    ln -s "$expected" "$pointer"
+    mv -Tf "$pointer" "$CYBER_RUNTIME/healthy"
+    exit 0
+fi
 echo 'Replacement shell did not become ready; restoring previous bundle.' >&2
-if [ -L "$CYBER_RUNTIME/previous" ]; then
-    previous="$(readlink -f "$CYBER_RUNTIME/previous")"
-    ln -s "$previous" "$CYBER_RUNTIME/rollback.new"
-    mv -Tf "$CYBER_RUNTIME/rollback.new" "$CYBER_RUNTIME/current"
+if [ -n "$rollback" ] && [ -s "$rollback/shell.js" ] && [ -s "$rollback/shell.css" ]; then
+    previous="$rollback"
+    pointer="$(mktemp -u "$CYBER_RUNTIME/rollback.XXXXXX")"
+    ln -s "$previous" "$pointer"
+    mv -Tf "$pointer" "$CYBER_RUNTIME/current"
     start
     ready "$previous" || echo 'Recovery failed; inspect ~/.local/state/cyberarch/shell.log' >&2
 fi

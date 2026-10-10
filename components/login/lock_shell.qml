@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Pam
 
@@ -11,6 +12,8 @@ ShellRoot {
 
     readonly property string currentUser: Quickshell.env("USER") || "V"
     readonly property bool isWayland: Quickshell.env("XDG_SESSION_TYPE") === "wayland"
+    property bool emergencyMode: false
+    property bool lockSecure: false
     property bool authenticated: false
     property bool sessionLocked: true
     property bool isTesting: Quickshell.env("QS_TESTING") === "1"
@@ -18,25 +21,57 @@ ShellRoot {
     signal loginOK()
     signal loginFail()
 
+    // A failed/broken theme can always be replaced without releasing the lock.
+    Shortcut {
+        sequence: "Ctrl+Alt+F"
+        onActivated: shellRoot.emergencyMode = true
+    }
+    IpcHandler {
+        target: "lock"
+        function secure(): bool { return shellRoot.lockSecure }
+    }
+
     function doAuth(user, pass) {
-        pam.user = user || currentUser
+        if (shellRoot.authenticated) return
+        if (pam.active) {
+            if (pam.responseRequired) pam.respond(pass)
+            return
+        }
+        // Only the session owner can authenticate, regardless of theme input.
+        pam.user = currentUser
         pam.pendingPassword = pass
-        pam.start()
+        pam.hasPendingPassword = true
+        if (!pam.start()) {
+            pam.pendingPassword = ""
+            pam.hasPendingPassword = false
+            shellRoot.loginFail()
+        }
     }
 
     PamContext {
         config: Quickshell.env("QS_PAM_CONFIG") || "login"
         id: pam
         property string pendingPassword: ""
+        property bool hasPendingPassword: false
 
         onResponseRequiredChanged: {
-            if (responseRequired && pendingPassword !== "") {
-                respond(pendingPassword)
+            if (!responseRequired) return
+            if (responseVisible) {
+                respond(shellRoot.currentUser)
+            } else if (hasPendingPassword) {
+                const response = pendingPassword
                 pendingPassword = ""
+                hasPendingPassword = false
+                respond(response)
+            } else {
+                // Additional challenges (e.g. OTP) need an editable prompt.
+                shellRoot.emergencyMode = true
             }
         }
 
         onCompleted: (result) => {
+            pendingPassword = ""
+            hasPendingPassword = false
             if (result === PamResult.Success) {
                 shellRoot.authenticated = true
                 shellRoot.loginOK()
@@ -77,11 +112,11 @@ ShellRoot {
                         id: password
                         anchors.fill: parent; anchors.margins: 12
                         color: "white"; echoMode: TextInput.Password; focus: true
-                        enabled: !pam.active
+                        enabled: !pam.active || pam.responseRequired
                         onAccepted: { shellRoot.doAuth(shellRoot.currentUser, text); text = "" }
                     }
                 }
-                Text { id: feedback; text: "Enter your password and press Enter"; color: "white" }
+                Text { id: feedback; text: pam.active ? pam.message : "Enter your password and press Enter"; color: "white"; width: 360; wrapMode: Text.Wrap }
                 Connections {
                     target: shellRoot
                     function onLoginFail() { feedback.text = "Authentication failed. Try again."; password.forceActiveFocus() }
@@ -95,7 +130,8 @@ ShellRoot {
         id: themeComponent
         Loader {
             anchors.fill: parent
-            source: "file://" + shellRoot.themePath + "/Main.qml"
+            source: shellRoot.emergencyMode ? "" : "file://" + shellRoot.themePath + "/Main.qml"
+            sourceComponent: shellRoot.emergencyMode ? emergencyAuth : undefined
 
             onLoaded: {
                 item.forceActiveFocus()
@@ -103,8 +139,7 @@ ShellRoot {
             onStatusChanged: {
                 if (status === Loader.Error) {
                     console.error("FAILED to load theme:", source)
-                    source = ""
-                    sourceComponent = emergencyAuth
+                    shellRoot.emergencyMode = true
                 }
             }
         }
@@ -117,6 +152,10 @@ ShellRoot {
             WlSessionLock {
                 id: lock
                 locked: shellRoot.sessionLocked
+                onSecureChanged: {
+                    shellRoot.lockSecure = secure
+                    if (secure) console.info("Session lock confirmed by compositor")
+                }
                 surface: Component {
                     WlSessionLockSurface {
                         color: "black"
@@ -141,34 +180,4 @@ ShellRoot {
         }
     }
 
-    Loader {
-        id: x11Loader
-        active: !shellRoot.isWayland
-        sourceComponent: Component {
-            Variants {
-                model: Quickshell.screens
-                delegate: Window {
-                    id: window
-                    required property var modelData
-                    screen: modelData
-                    width: isTesting ? 1280 : screen.width
-                    height: isTesting ? 720 : screen.height
-                    visible: shellRoot.sessionLocked
-                    visibility: isTesting ? Window.Windowed : Window.FullScreen
-
-                    onClosing: (close) => {
-                        close.accepted = shellRoot.authenticated || shellRoot.isTesting;
-                    }
-
-                    flags: Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.MaximizeUsingFullscreenGeometryHint
-                    color: "black"
-
-                    Loader {
-                        anchors.fill: parent
-                        sourceComponent: themeComponent
-                    }
-                }
-            }
-        }
-    }
 }

@@ -722,6 +722,8 @@ const syncColors = latestTask<string>(async (name, current) => {
     await themeCommand("shell-theme", name)
     if (!current()) return
     await themeCommand("rio-style", RIO_STYLES[name] ?? "cybercore")
+    if (!current()) return
+    await themeCommand("kitty-style", RIO_STYLES[name] ?? "cybercore")
     if (current()) applyWmFromTheme()
 })
 const syncWallpaper = latestTask<string | null>(async name => {

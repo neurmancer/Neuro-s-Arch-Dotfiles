@@ -2,3 +2,8 @@ NOTES.md
 RELIABILITY_AUDIT.md
 #excludes already tracked gen-map.py
 *.py 
+
+# Runtime configuration helper is shipped with the theme.
+!scripts/theme-config.py
+__pycache__/
+/tests/

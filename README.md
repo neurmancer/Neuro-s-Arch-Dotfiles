@@ -20,6 +20,7 @@
 
 > I didn't touch most of the readme yet because I did not touch the code and removing the original version before fucking with files feels wrong UnU
 
+> Fuck...this gonna require soooo much documentation afterwards...
 
 
 ### Shit to-do list
@@ -157,6 +158,11 @@ Open the full cheat-sheet with all keybinds anytime with **`SUPER+SHIFT+H`**.
 | `SUPER + ALT + SHIFT + P` | Previous color palette |
 
 ---
+
+Kitty follows the selected palette through `~/.config/kitty/cyberarch-colors.conf`
+(or your `KITTY_CONFIG_DIRECTORY`). The generated include changes colors only; fonts,
+padding, opacity, and keybindings stay in `kitty.conf`. Open Kitty windows reload
+automatically using [Kitty’s configuration reload signal](https://sw.kovidgoyal.net/kitty/conf/).
 
 ### System & capture
 

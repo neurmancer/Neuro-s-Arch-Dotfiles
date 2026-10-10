@@ -9,17 +9,18 @@ export AGS_BIN
 . "$THEME_DIR/scripts/runtime.sh"
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/cyberarch"
 mkdir -p "$STATE"
-prepare() {
-    local staged
+prepare() (
+    exec 7>"$CYBER_RUNTIME/build.lock"
+    flock -w 45 7 || return 1
     staged="$(mktemp -d "$CYBER_RUNTIME/build.XXXXXX")"
+    pointer="$(mktemp -u "$CYBER_RUNTIME/current.XXXXXX")"
+    trap 'rm -f "$pointer"' EXIT
     if ! "$THEME_DIR/scripts/preflight" "$staged"; then rm -rf "$staged"; return 1; fi
-    # Keep two complete generations; readers see a single directory switch.
-    if [ -L "$CYBER_RUNTIME/current" ]; then
-        ln -sfn "$(readlink "$CYBER_RUNTIME/current")" "$CYBER_RUNTIME/previous"
-    fi
-    ln -s "$staged" "$CYBER_RUNTIME/current.new"
-    mv -Tf "$CYBER_RUNTIME/current.new" "$CYBER_RUNTIME/current"
-}
+    # Building a candidate never overwrites the last readiness-verified build.
+    ln -s "$staged" "$pointer"
+    mv -Tf "$pointer" "$CYBER_RUNTIME/current"
+)
+
 if [ "${1:-}" = --check ]; then
     stage="$(mktemp -d "$CYBER_RUNTIME/check.XXXXXX")"
     trap 'rm -rf "$stage"' EXIT
@@ -37,16 +38,29 @@ runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
     echo 'WAYLAND_DISPLAY must identify the current compositor' >&2; exit 1;
 }
 child=""
-trap 'trap - TERM INT; [ -z "$child" ] || kill "$child" 2>/dev/null; wait || true; exit 0' TERM INT
+trap 'trap - TERM INT; [ -z "$child" ] || kill -- "-$child" 2>/dev/null; wait || true; exit 0' TERM INT
 failures=0
 while [ "$failures" -lt 5 ]; do
     build="$(readlink -f "$CYBER_RUNTIME/current")"
     started=$SECONDS
     # Bound log growth across starts, preserving the previous run.
     [ ! -f "$STATE/shell.log" ] || mv -f "$STATE/shell.log" "$STATE/shell.previous.log"
-    env CYBER_BUILD_ID="$build" CYBER_CSS="$build/shell.css" GDK_BACKEND=wayland \
+    setsid env CYBER_BUILD_ID="$build" CYBER_CSS="$build/shell.css" GDK_BACKEND=wayland \
         bash "$build/shell.js" 8>&- >>"$STATE/shell.log" 2>&1 &
     child=$!
+    # Verify the named instance, not merely a live PID. The wrapper and GJS
+    # share a process group so supervisor shutdown cannot orphan the HUD.
+    for _ in $(seq 1 40); do
+        kill -0 "$child" 2>/dev/null || break
+        response="$(timeout 1 astal -i cyberpunk health 2>/dev/null || true)"
+        if [ "$response" = "$build" ]; then
+            pointer="$(mktemp -u "$CYBER_RUNTIME/healthy.XXXXXX")"
+            ln -s "$build" "$pointer"
+            mv -Tf "$pointer" "$CYBER_RUNTIME/healthy"
+            break
+        fi
+        sleep 0.25
+    done
     wait "$child" || true
     child=""
     if (( SECONDS - started > 60 )); then failures=0; fi
