@@ -1384,6 +1384,8 @@ block_comment() {
 }
 block_comment "$HYDIR/hyprland.conf"
 block_comment "$USERCONF"
+python3 "$THEME/scripts/terminal-migrate.py"
+
 hdr "ACTIVATE THEMING"
 [ -x "$THEME/scripts/apply_theme" ] && "$THEME/scripts/apply_theme" && ok "icon/cursor/kitty/kvantum theming applied" || warn "apply_theme not run"
 X11ENV="/etc/profile.d/cyberarch-x11-env.sh"

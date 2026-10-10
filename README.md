@@ -29,15 +29,18 @@
 
 - [ ] UI tweaks
 
-- [ ] Optional NSD™ color themes
+- [X] Optional NSD™ color themes
 
 - [ ] unskippable scope-creeep driven development
 
 - [ ] Fish is cool but I might return to bash as the default shell
 
-- [ ] Cool retro-term support won't be here kitty is the default shell
+- [X] Cool retro-term support won't be here kitty is the default shell (**Removed the other terminal supports**)
 
 - [ ] There is a 'cyberspace' online terminal webkit GUI here but I haven't investigate it yet and wasn't working...so might ditch it as well
+
+- [ ] A scratchpad 
+
 
 ### About each component
 

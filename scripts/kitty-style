@@ -7,6 +7,7 @@ SRC="${CYBER_DIR:-$(dirname "$DIR")}/assets/kitty/styles/$STYLE.toml"
 KITTY_DIR="${KITTY_CONFIG_DIRECTORY:-${XDG_CONFIG_HOME:-$HOME/.config}/kitty}"
 EXTRA="${2:-${XDG_CONFIG_HOME:-$HOME/.config}/cyberarch/kitty_themes}"
 [ -f "$SRC" ] || SRC="$EXTRA/$STYLE.toml"
+python3 "$DIR/terminal-migrate.py"
 python3 "$DIR/theme-config.py" kitty "$SRC" "$KITTY_DIR/kitty.conf"
 printf '%s\n' "$STYLE" > "$KITTY_DIR/.kitty-style"
 # Fish owns command syntax colors. Install the prompt hook for new shells.

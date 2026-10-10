@@ -20,4 +20,5 @@ jobs:
       - run: python3 tests/restart-recovery-harness.py
       - run: python3 tests/theme-startup-harness.py
       - run: python3 tests/theme-config-harness.py
+      - run: python3 tests/terminal-migration-harness.py
       - run: node --test tests/*.test.mjs
