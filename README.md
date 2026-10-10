@@ -132,6 +132,7 @@ Open the full cheat-sheet with all keybinds anytime with **`SUPER+SHIFT+H`**.
 | --- | --- |
 | `SUPER` / `SUPER + Space` | App launcher |
 | `SUPER + SHIFT + Z` | Toggle HUD above / below windows |
+| `SUPER + ALT + H` | Hide / show all desktop widgets together (saved across restarts) |
 | `SUPER + SHIFT + V` | Volume & Microphone modal |
 | `SUPER + SHIFT + I` | Brightness modal |
 | `SUPER + SHIFT + M` | Messages modal |
@@ -149,6 +150,13 @@ Open the full cheat-sheet with all keybinds anytime with **`SUPER+SHIFT+H`**.
 | `SUPER + SHIFT + C` | CPU / RAM / system modal |
 | `SUPER + SHIFT + H` | Keybind help |
 | `SUPER + SHIFT + BACKSPACE` | Theme Settings |
+
+## New shit drop
+
+| `SUPER + ALT + P` | Next color palette |
+| `SUPER + ALT + SHIFT + P` | Previous color palette |
+
+---
 
 ### System & capture
 
@@ -168,12 +176,23 @@ Open the full cheat-sheet with all keybinds anytime with **`SUPER+SHIFT+H`**.
 | --- | --- |
 | `SUPER + SHIFT + F` | Fullscreen toggle |
 | `SUPER + F` | Float / tile toggle |
+| `SUPER + ALT + Page Up` | Increase focused-window opacity by %5 |
+| `SUPER + ALT + Page Down` | Decrease focused-window opacity by %5 |
 | `SUPER + ← → ↑ ↓` | Move focus |
 | `SUPER + SHIFT + ← → ↑ ↓` | Move window |
 | `CTRL + SHIFT + ← → ↑ ↓` | Resize window |
 | `SUPER + 1…0` | Switch workspace (with the glitch transition) |
 | `ALT + SHIFT + 1/2/3/4/5...` | Send window to workspace |
 | 3-finger swipe (If using notebook)  ← / → | Previous / next workspace |
+
+Opacity changes apply immediately to the focused window, including its inactive
+and fullscreen states, within a **10%–100%** range(I mean...duh). They last for that window's
+lifetime reopening the application uses its configured defaults. 
+You don't need restart
+
+These opacity and palette shortcuts use fixed `SUPER + ALT` modifiers ('cuz I am not fucking .ts developer ), independent
+of `$themeMod`. To customize them, open **Theme Settings > Keybinds**; their defaults
+are defined in [`config/keybinds.lua`](config/keybinds.lua).
 
 ---
 
@@ -225,4 +244,3 @@ cyberpunk/
 𝝺𝗿𝗰𝗮𝗻𝗴𝗲𝗹𝗼 @ 2026
 
 </div>
-

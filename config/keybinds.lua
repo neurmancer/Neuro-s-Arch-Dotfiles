@@ -153,7 +153,8 @@ end
 
 doScan()
 
-CD.actions = {}
+CD.actions = {
+    { id="hud.widgets", label="SHOW / HIDE WIDGETS", mod="SUPER + ALT", key="H", group="deck", run=sock("toggle-widgets") },}
 
 function CD.bind(combo, run, label, opts)
     CD.reserved[#CD.reserved + 1] = { combo = combo, label = label or "SYSTEM" }
@@ -240,6 +241,7 @@ for i = 1, 10 do
 end
 
 CD.actions = {
+    { id="hud.widgets", label="SHOW / HIDE WIDGETS", mod="SUPER + ALT", key="H", group="deck", run=sock("toggle-widgets") },
     { id="hud.palettenext", label="NEXT PALETTE", mod="SUPER + ALT", key="P", group="deck", run=sock("palette-next") },
     { id="hud.paletteprev", label="PREVIOUS PALETTE", mod="SUPER + ALT + SHIFT", key="P", group="deck", run=sock("palette-prev") },
     { id="hud.toggle",   label="TOGGLE HUD",          mod="@themeMod", key="Z",         group="deck", run=sock("toggle-hud") },

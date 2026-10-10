@@ -8,7 +8,7 @@ import AstalNotifd from "gi://AstalNotifd"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import Gdk from "gi://Gdk?version=3.0"
-import { COMPONENTS_DIR, CYBER_DIR, RUNTIME_DIR, SCREEN_WIDTH, SCREEN_HEIGHT, scaleOf } from "./env.ts"
+import { COMPONENTS_DIR, CYBER_DIR, USER_DIR, RUNTIME_DIR, SCREEN_WIDTH, SCREEN_HEIGHT, scaleOf } from "./env.ts"
 import { loadUserColors, PALETTES, getActivePalette } from "./components/modules/colors.ts"
 import { applyColors } from "./components/modules/themesettings.ts"
 import { applyWmRules, applyWmFromTheme } from "./components/modules/wmconfig.ts"
@@ -23,7 +23,7 @@ import { NotifHudWindow, toggleNotifHud, dismissAll, isDetailView } from "./comp
 import {
  WsAnimWindow, triggerWsSwitch, BannerWindow, triggerShutter,
  RecWindow, RecGlitchWindow, RecFrameWindow, setRecording, passthrough, registerHudWindows,
- isRecording, toggleHudDuringRec,
+ isRecording, toggleHudDuringRec, refreshHudVisibility,
 } from "./components/modules/anim.ts"
 import { RegionWindow, triggerRegion, triggerRecordRegion } from "./components/modules/region.ts"
 import { ToastWindow, showToast } from "./components/modules/toast.ts"
@@ -31,7 +31,6 @@ import { setTextHalo } from "./components/modules/proj.ts"
 import { CModalWindows, toggleModal, ThemeSettingsWindow } from "./components/modules/cmodal.ts"
 import { openKbConflictsModal } from "./components/modules/kbconflicts.ts"
 import { AurBarWindow, dismissAurBar, dismissThemeBar, showInstalled } from "./components/modules/aurbar.ts"
-import { LauncherWindow } from "./components/modules/launcher.ts"
 import { AppsMenuWindow, openAppsMenu } from "./components/modules/appsmenu.ts"
 import { PlayerWindow, togglePlayer } from "./components/modules/player.ts"
 import { NowPlayingWindow } from "./components/modules/nowplaying.ts"
@@ -45,6 +44,20 @@ const compileCss = async () => {
 }
 
 const hudWins = []
+const WIDGET_VISIBILITY_FILE = `${USER_DIR}/widgets-visible.json`
+let widgetsVisible = true
+try {
+ const [ok, bytes] = GLib.file_get_contents(WIDGET_VISIBILITY_FILE)
+ if (ok) widgetsVisible = JSON.parse(new TextDecoder().decode(bytes)) !== false
+} catch {}
+const toggleWidgets = () => {
+ widgetsVisible = !widgetsVisible
+ for (const w of hudWins) w._widgetsHidden = !widgetsVisible
+ refreshHudVisibility()
+ try { GLib.file_set_contents(WIDGET_VISIBILITY_FILE, JSON.stringify(widgetsVisible)) }
+ catch (e) { print("[widgets] could not save visibility:", e) }
+}
+
 const WRAP_MARGINS: Record<string, [number, number, number, number]> = {
  monitors: [20, 0, 0, 20],
  sidepanel: [26, 28, 0, 0],
@@ -248,8 +261,9 @@ const createMonitorHud = (mon) => {
  { const mw = surface(mon, "markets", Anchor.TOP | Anchor.RIGHT, MarketsPanel(mon), { margin_top: Math.round(560 * S) }); (mw as any)._rectHit = true }
  { const hw = surface(mon, "hordock", Anchor.BOTTOM | Anchor.LEFT, HorizDock(mon)); (hw as any)._rectHit = true }
  { const tw = surface(mon, "toggles", Anchor.BOTTOM | Anchor.LEFT, Toggles(mon)); (tw as any)._rectHit = true }
- { const lw = LauncherWindow(mon); (lw as any)._rectHit = true; hudWins.push(lw) }
  for (const w of hudWins.slice(first)) {
+ w._widgetsHidden = !widgetsVisible
+ if (!widgetsVisible) w.visible = false
  w.connect("size-allocate", () => deferShape(w))
  w.connect("map", () => deferShape(w))
  }
@@ -292,7 +306,7 @@ const syncMonitorHud = () => {
  w._monitorDetached = !online
  w.gdkmonitor = mon
  w.layer = hudOnTop ? Layer.TOP : Layer.BOTTOM
- if (online && !isRecording()) w.visible = true
+ if (online && widgetsVisible && !isRecording()) w.visible = true
  deferShape(w)
  }
  }
@@ -301,6 +315,7 @@ const syncMonitorHud = () => {
  for (const [name, group] of monitorHuds) if (!present.has(name)) {
  removeMonitorHud(name)
  }
+ refreshHudVisibility()
 }
 
 
@@ -318,7 +333,9 @@ App.start({
  const names = Object.keys(PALETTES)
  const direction = request === "palette-next" ? 1 : -1
  const name = names[(names.indexOf(getActivePalette()) + direction + names.length) % names.length]
- applyColors(name).then(() => { showToast(`THEME: ${name}`); reply("ok") }).catch(e => { print(e); reply("err") })
+ // Acknowledge selection immediately; applyColors reports background failures.
+ void applyColors(name)
+ reply("ok")
  } catch (e) { print(e); reply("err") }
  } else if (request === "launcher") {
  execAsync(["sh", "-c", "rofi -show drun || rofi -show run"]).catch(print)
@@ -368,6 +385,11 @@ App.start({
  } else if (request === "record-stop") {
  try { setRecording(false) } catch (e) { print(e) }
  reply("ok")
+ } else if (request === "widgets-visible") {
+ reply(widgetsVisible ? "shown" : "hidden")
+ } else if (request === "toggle-widgets") {
+ toggleWidgets()
+ reply(widgetsVisible ? "shown" : "hidden")
  } else if (request === "toggle-hud") {
  try {
 

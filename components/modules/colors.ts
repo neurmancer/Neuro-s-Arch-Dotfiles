@@ -1,3 +1,4 @@
+import { latestTask } from "./latest-task.ts"
 import GLib from "gi://GLib"
 import GdkPixbufLib from "gi://Gdk?version=3.0"
 import { execAsync } from "astal"
@@ -714,22 +715,28 @@ export const rgbToHex = ([r, g, b]: RGB) =>
 // each theme has its own .toml terminal file, this maps them
 const RIO_STYLES: Record<string, string> = { NSD: "nsd", GHOST: "ghost", KITTY: "kitty", SYNTHWAVE: "synthwave", ARCTIC: "arctic", BLOODMOON: "bloodmoon", BLADE: "blade", JOHNNY: "johnny" }
 
-// One queue owns all external theme effects. A later selection skips queued
-// obsolete jobs; a running job finishes before the latest selection starts.
-let themeQueue: Promise<void> = Promise.resolve()
-let themeRequest = 0
-export const syncTheme = (name: string, wallpaper = false): Promise<void> => {
-    const request = ++themeRequest
-    const job = themeQueue.catch(() => {}).then(async () => {
-        if (request !== themeRequest) return
-        await execAsync(["env", `CYBER_DIR=${CYBER_DIR}`, `${CYBER_DIR}/scripts/shell-theme`, name])
-        await execAsync(["env", `CYBER_DIR=${CYBER_DIR}`, `${CYBER_DIR}/scripts/rio-style`, RIO_STYLES[name] ?? "cybercore"])
-        if (wallpaper && request === themeRequest)
-            await execAsync(["env", `CYBER_DIR=${CYBER_DIR}`, `${CYBER_DIR}/scripts/theme-wallpaper`, name])
-        applyWmFromTheme()
+const themeCommand = (script: string, name: string) =>
+    execAsync(["env", `CYBER_DIR=${CYBER_DIR}`, `${CYBER_DIR}/scripts/${script}`, name])
+
+const syncColors = latestTask<string>(async (name, current) => {
+    await themeCommand("shell-theme", name)
+    if (!current()) return
+    await themeCommand("rio-style", RIO_STYLES[name] ?? "cybercore")
+    if (current()) applyWmFromTheme()
+})
+const syncWallpaper = latestTask<string | null>(async name => {
+    if (name) await themeCommand("theme-wallpaper", name)
+})
+
+// The HUD changes synchronously. External color writers remain ordered, while
+// wallpaper startup has its own queue and cannot hold up subsequent colors.
+export const syncTheme = (name: string, wallpaper = false): Promise<boolean> => {
+    const colors = syncColors(name)
+    syncWallpaper(wallpaper ? name : null).catch(e => {
+        print(`[theme] wallpaper for ${name}:`, e)
+        execAsync(["notify-send", "Wallpaper change failed", `${name}: ${e}`]).catch(print)
     })
-    themeQueue = job
-    return job
+    return colors
 }
 
 let curPalette = "NETWATCH"

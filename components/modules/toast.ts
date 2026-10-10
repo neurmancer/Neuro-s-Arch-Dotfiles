@@ -14,7 +14,7 @@ const cR = NEON.overlay, cC = NEON.dock
 let ALERT: any = null
 try { ALERT = GdkPixbuf.Pixbuf.new_from_file(`${CYBER_DIR}/assets/icons/alert.png`) } catch (e) { print("[toast] alert.png:", e) }
 
-type Cfg = { x: number; y: number; w: number; h: number; yaw: number; pitch: number; roll: number; focal: number; dist: number; text: string; col: [number, number, number]; textCol: [number, number, number] }
+type Cfg = { immediate?: boolean; x: number; y: number; w: number; h: number; yaw: number; pitch: number; roll: number; focal: number; dist: number; text: string; col: [number, number, number]; textCol: [number, number, number] }
 const DEF: Cfg = { x: -1, y: 70, w: 360, h: 40, yaw: 0, pitch: 0, roll: 0, focal: 2000, dist: 2000, text: "NOTIFICATION TESTING", col: cR, textCol: cC }
 
 let ICON = 30
@@ -129,7 +129,9 @@ export const showToast = (text?: string, opts?: Partial<Cfg>) => {
  cfg = { ...DEF, ...(opts || {}) }
  if (text) cfg.text = text
  buildPlane()
- t0 = Date.now(); running = true; win.visible = true
+ // Palette feedback starts fully open; each new selection replaces the label.
+ t0 = Date.now() - (cfg.immediate ? A_BLINK + EDGE_HOLD + OPEN : 0); running = true; win.visible = true
+ area.queue_draw()
  if (anim) anim.cancel()
  anim = interval(16, () => area.queue_draw())
 }

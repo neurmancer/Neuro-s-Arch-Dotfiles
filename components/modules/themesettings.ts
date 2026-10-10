@@ -1,3 +1,4 @@
+import { showToast } from "./toast.ts"
 import { execAsync, timeout, Variable } from "astal"
 import Gdk from "gi://Gdk?version=3.0"
 import Gtk from "gi://Gtk?version=3.0"
@@ -42,8 +43,10 @@ export const readTune = () => {
     wallScroll = 0
 }
 
-export const applyColors = (name: string): Promise<void> => {
+export const applyColors = (name: string): Promise<boolean> => {
+    if (!PALETTES[name]) throw new Error(`Unknown palette: ${name}`)
     closeAllModals(); applyPalette(name); saveUserColors(); selPalette = name
+    showToast(`THEME: ${name}`, { immediate: true })
     const job = syncTheme(name, true)
     job.catch(e => { print("[theme] application failed:", e); execAsync(["notify-send", "Theme application failed", String(e)]).catch(print) })
     return job

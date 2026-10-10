@@ -45,7 +45,7 @@ while [ "$failures" -lt 5 ]; do
     # Bound log growth across starts, preserving the previous run.
     [ ! -f "$STATE/shell.log" ] || mv -f "$STATE/shell.log" "$STATE/shell.previous.log"
     env CYBER_BUILD_ID="$build" CYBER_CSS="$build/shell.css" GDK_BACKEND=wayland \
-        gjs -m "$build/shell.js" 8>&- >>"$STATE/shell.log" 2>&1 &
+        bash "$build/shell.js" 8>&- >>"$STATE/shell.log" 2>&1 &
     child=$!
     wait "$child" || true
     child=""

@@ -8,8 +8,8 @@ return function(wm)
     local mode = wm.wmOpacityMode or "off"
     if wm.wmOpacity ~= true or (mode ~= "only" and mode ~= "except") then return end
     local apps = {}
-    for app in tostring(wm.wmOpacityApps or ""):gmatch("[^,\n]+") do
-        app = app:match("^%s*(.-)%s*$")
+    for entry in tostring(wm.wmOpacityApps or ""):gmatch("[^,\n]+") do
+        local app = entry:match("^%s*(.-)%s*$")
         if app ~= "" then
             apps[#apps + 1] = app:gsub('([\\%.%+%*%?%[%]%^%$%(%)%{%}%|])', '\\%1')
         end
