@@ -50,10 +50,12 @@ while [ "$failures" -lt 5 ]; do
     child=$!
     # Verify the named instance, not merely a live PID. The wrapper and GJS
     # share a process group so supervisor shutdown cannot orphan the HUD.
+    ready=false
     for _ in $(seq 1 40); do
         kill -0 "$child" 2>/dev/null || break
         response="$(timeout 1 astal -i cyberpunk health 2>/dev/null || true)"
         if [ "$response" = "$build" ]; then
+            ready=true
             pointer="$(mktemp -u "$CYBER_RUNTIME/healthy.XXXXXX")"
             ln -s "$build" "$pointer"
             mv -Tf "$pointer" "$CYBER_RUNTIME/healthy"
@@ -61,6 +63,12 @@ while [ "$failures" -lt 5 ]; do
         fi
         sleep 0.25
     done
+    if ! "$ready"; then
+        echo "Shell did not become ready; terminating its process group." >>"$STATE/shell.log"
+        kill -TERM -- "-$child" 2>/dev/null || true
+        sleep 1
+        kill -KILL -- "-$child" 2>/dev/null || true
+    fi
     wait "$child" || true
     child=""
     if (( SECONDS - started > 60 )); then failures=0; fi

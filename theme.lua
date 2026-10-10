@@ -184,8 +184,8 @@ hl.config({
 hl.layer_rule({ match = { namespace = "modal_.*" }, blur = true })
 
 hl.window_rule({
-    name        = "rio-terminal",
-    match       = { class = "^(rio)$" },
+    name        = "kitty-terminal",
+    match       = { class = "^(kitty)$" },
     border_size = 0,
     no_shadow   = true,
     decorate    = false,
@@ -194,9 +194,6 @@ hl.window_rule({
     center      = true,
 })
 
-hl.window_rule({ match = { class = "^cool-retro-term$" },          float = true })
-hl.window_rule({ match = { class = "^cool-retro-term$" },          center = true })
-hl.window_rule({ match = { class = "^cool-retro-term$" },          size  = "60% 65%" })
 hl.window_rule({ match = { class = "^xdg-desktop-portal-gtk$" },   float = true })
 hl.window_rule({ match = { class = "^xdg-desktop-portal-gtk$" },   center = true })
 hl.window_rule({ match = { class = "^xdg-desktop-portal-gtk$" },   size  = "60% 65%" })

@@ -9,10 +9,10 @@ import GLib from "gi://GLib"
 import Gdk from "gi://Gdk?version=3.0"
 
 
-const RIO = `${GLib.get_home_dir()}/.config/rio`
-const RTDIR = `${USER_DIR}/rio_themes`
-const MARK = `${RIO}/.rio-style`
-const CFG = `${USER_DIR}/rio_theme.json`
+const KITTY = GLib.getenv("KITTY_CONFIG_DIRECTORY") || `${GLib.get_user_config_dir()}/kitty`
+const RTDIR = `${USER_DIR}/kitty_themes`
+const MARK = `${KITTY}/.kitty-style`
+const CFG = `${USER_DIR}/kitty_theme.json`
 const ROWH = 30
 
 
@@ -48,9 +48,9 @@ export const TerminalThemeCtrl = () => {
     let ctrl: any
 
     const dir = () => st.dir || RTDIR
-    const collect = () => { st.list = []; scan(`${CYBER_DIR}/assets/rio/styles`, "core", st.list); scan(dir(), st.dir ? "custom" : "user", st.list) }
+    const collect = () => { st.list = []; scan(`${CYBER_DIR}/assets/kitty/styles`, "core", st.list); scan(dir(), st.dir ? "custom" : "user", st.list) }
     const load = () => { try { st.dir = JSON.parse(rd(CFG) || "{}").dir || "" } catch { st.dir = "" }; GLib.mkdir_with_parents(RTDIR, 0o755); collect(); st.cur = rd(MARK).trim() }
-    const put = (t: any) => { execAsync([`${CYBER_DIR}/scripts/rio-style`, t.name, dir()]).catch(() => ""); st.cur = t.name; ctrl.requestDraw() }
+    const put = (t: any) => { execAsync([`${CYBER_DIR}/scripts/kitty-style`, t.name, dir()]).then(() => { st.cur = t.name; ctrl.requestDraw() }).catch(print) }
 
     ctrl = createModal({
         name: "termtheme", tabTitle: "TERMINAL THEME", W: 434, H: 492,

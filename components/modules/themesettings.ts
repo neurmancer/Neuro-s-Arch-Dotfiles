@@ -1101,7 +1101,7 @@ const drawCaptureForm = (ctx, g, x, y, w) => {
             ctx.setSourceRGBA(g.col[0], g.col[1], g.col[2], 0.7)
             ctx.setLineWidth(0.9)
             btnPath(ctx, x, cy, w, fieldH); ctx.stroke()
-            const placeholder = kbCommandText || "// e.g. alacritty -e htop"
+            const placeholder = kbCommandText || "// e.g. kitty htop"
             txt(ctx, x + 12, cy + fieldH / 2 + 4, placeholder, MONO, 10, g.col, kbCommandText ? 0.95 : 0.55, 1, 0)
             cy += fieldH + 6
             const bw = (w - 6) / 2

@@ -1,0 +1,23 @@
+name: Reliability checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  isolated-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - run: python3 tests/install-safety-harness.py
+      - run: python3 tests/install-location-harness.py
+      - run: bash tests/install-dm-harness.sh
+      - run: python3 tests/restart-recovery-harness.py
+      - run: python3 tests/theme-startup-harness.py
+      - run: python3 tests/theme-config-harness.py
+      - run: node --test tests/*.test.mjs

@@ -279,7 +279,7 @@ HYP_PKGS="hyprland hyprgraphics hyprland-guiutils hyprlock hyprtoolkit hyprwire 
 REPO=(
   gjs grim wf-recorder wl-clipboard networkmanager bluez-utils curl
   wireplumber playerctl brightnessctl power-profiles-daemon upower
-  hypridle socat jq rofi libnotify sassc kitty kvantum kvantum-qt5 wget fuse2 sqlite3 pacman-contrib awww cronie dolphin
+  hypridle socat jq rofi libnotify sassc kitty kvantum kvantum-qt5 wget pacman-contrib awww cronie dolphin
    libcdio libcdio-paranoia
   base-devel pkgconf cmake cpio gcc lib32-libelf lib32-glibc glibc
   python python-pillow imagemagick $MESA_PKGS
@@ -821,56 +821,6 @@ else
   warn "pacman hook skipped |::| re-run ./install.sh to add it later"
 fi
 
-hdr "COOL-RETRO-TERM · netrunner profile"
-CRT_BIN="$HOME/.local/bin/cool-retro-term"
-CRT_URL="https://github.com/Swordfish90/cool-retro-term/releases/download/2.0.0-beta2/cool-retro-term-2.0.0-beta2.AppImage"
-if [ -x "$CRT_BIN" ]; then
-  ok "cool-retro-term AppImage already present ($CRT_BIN)"
-elif command -v wget >/dev/null 2>&1; then
-  as_user mkdir -p "$HOME/.local/bin"
-  step "downloading cool-retro-term AppImage…"
-  if as_user wget -q --show-progress -O "$CRT_BIN" "$CRT_URL"; then as_user chmod +x "$CRT_BIN" && ok "installed cool-retro-term → $CRT_BIN"
-  else rm -f "$CRT_BIN"; warn "download failed |::| grab it manually: $CRT_URL"; fi
-else
-  warn "wget not found |::| install wget or download manually to $CRT_BIN: $CRT_URL"
-fi
-CRT_DESKTOP="$HOME/.local/share/applications/cool-retro-term.desktop"
-as_user mkdir -p "$(dirname "$CRT_DESKTOP")"
-as_user bash -c "cat > '$CRT_DESKTOP'" <<EOF
-[Desktop Entry]
-Type=Application
-Name=cool-retro-term
-Exec=$CRT_BIN
-Icon=utilities-terminal
-Categories=System;TerminalEmulator;
-Terminal=false
-EOF
-ok "desktop entry → $CRT_DESKTOP"
-CRTJSON="$THEME/assets/cool-retro-term/netrunner.json"
-if command -v jq >/dev/null 2>&1 && [ -f "$CRTJSON" ]; then
-  CRTDIR="$HOME/.config/cool-retro-term"; CRTCONF="$CRTDIR/cool-retro-term.conf"
-  pgrep -x cool-retro-term >/dev/null && warn "cool-retro-term is running |::| close it so settings stick."
-  as_user mkdir -p "$CRTDIR"
-  [ -f "$CRTCONF" ] && as_user cp -f "$CRTCONF" "$CRTCONF.bak.$(date +%s)" && ok "backed up existing conf"
-  { echo "[General]"
-    jq -r 'to_entries[] | select(.key!="name" and .key!="version") | "\(.key)=\(.value)"' "$CRTJSON"
-  } | as_user bash -c "cat > '$CRTCONF'"
-  ok "netrunner set as the default cool-retro-term appearance"
-else
-  warn "skipped (need cool-retro-term + jq + netrunner.json). Import it via the app's Load button if needed."
-fi
-
-hdr "COOL-RETRO-TERM · netrunner profile install"
-if [ -x "$CRT_BIN" ] && [ -f "$THEME/scripts/netrunner-terminal" ]; then
-  if [ ! -d "$HOME/.local/share/cool-retro-term" ]; then
-    step "first-run cool-retro-term to generate its profile database"
-    as_user_env "$CRT_BIN" >/dev/null 2>&1 & CRTPID=$!
-    sleep 6
-    kill "$CRTPID" 2>/dev/null; pkill -x cool-retro-term 2>/dev/null
-  fi
-  as_user_env bash "$THEME/scripts/netrunner-terminal" && ok "netrunner profile installed" || warn "netrunner-terminal failed |::| run cool-retro-term once, then: scripts/netrunner-terminal"
-fi
-
 hdr "CYBERSPACE · net client"
 CS_SRC="$THEME/components/apps/CyberSpace"
 CS_BIN="$HOME/.local/bin/cyberspace"
@@ -966,7 +916,7 @@ if [ "$ans" = "y" ] || [ "$ans" = "Y" ]; then
   grep -q dangerous_nogreeting "$CFG" 2>/dev/null || sed -i '2i set -U dangerous_nogreeting' "$CFG" || true
   sed -i 's|^[[:space:]]*starship init.*|#&|' "$CFG" 2>/dev/null || true
   if ! grep -q samurai.png "$CFG" 2>/dev/null; then
-    printf '\nif status is-interactive\n    if type -q kitten\n        kitten icat --align left $HOME/.config/hypr/themes/cyberpunk/assets/cool-retro-term/samurai.png\n    end\nend\n' >> "$CFG"
+    printf '\nif status is-interactive\n    if type -q kitten\n        kitten icat --align left $HOME/.config/hypr/themes/cyberpunk/assets/kitty/samurai.png\n    end\nend\n' >> "$CFG"
   fi
   FISH_PATH="/usr/bin/fish"
   if ! grep -q "$FISH_PATH" /etc/shells 2>/dev/null; then
@@ -1434,177 +1384,6 @@ block_comment() {
 }
 block_comment "$HYDIR/hyprland.conf"
 block_comment "$USERCONF"
-# rust stuff and the new cybre terminal
-# Cool retro term gives a cool 'Arasaka UI' but in leverage of alot of CPU
-# Rio terminal uses GPU and has some nice 'glassy effects' for the theme without burning so much memory
-# and also has image support unlike CRT.
-hdr "CYBER TERMINAL"
-GTSRC="$THEME/assets/rio"
-GTCFG="$HOME/.config/rio"
-GTRT="$USER_DIR/rio_themes"
-GTBIN="${CARGO_HOME:-$HOME/.cargo}/bin/rio"
-GTVER="0.4.5"
-GTKEY="SUPER + T"
-gt_has_gpu() { command -v strings >/dev/null 2>&1 || return 1; [ -x "$1" ] && strings -n 8 "$1" 2>/dev/null | grep -qi librashader >/dev/null; }
-gt_runs() { [ -x "$1" ] && "$1" --version >/dev/null 2>&1; }
-gt_rust_ok() { command -v cargo >/dev/null 2>&1 && command -v rustc >/dev/null 2>&1 && rustc -vV >/dev/null 2>&1 && cargo -V >/dev/null 2>&1; }
-gt_rust_err() { rustc -vV 2>&1 | grep -v '^$' | head -1; }
-gt_icd_present() { ls /usr/share/vulkan/icd.d/*.json >/dev/null 2>&1; }
-gt_vendor_icd() {
-  local d cls ven out=""
-  for d in /sys/bus/pci/devices/*; do
-    [ -r "$d/class" ] && [ -r "$d/vendor" ] || continue
-    read -r cls < "$d/class"; read -r ven < "$d/vendor"
-    case "$cls" in 0x03*) ;; *) continue ;; esac
-    case "$ven" in
-      0x1002) case " $out " in *" vulkan-radeon "*) ;; *) out="$out vulkan-radeon" ;; esac ;;
-      0x8086) case " $out " in *" vulkan-intel "*) ;; *) out="$out vulkan-intel" ;; esac ;;
-      0x10de) case " $out " in *" nvidia-utils "*) ;; *) out="$out nvidia-utils" ;; esac ;;
-    esac
-  done
-  printf '%s' "$out"
-}
-if [ ! -d "$GTSRC" ]; then
-  warn "GPU Terminal assets missing. |::| Skipping..."
-else
-    GT_OK=0
-    GT_DEPS="rust llvm-libs cmake pkgconf librashader binutils fontconfig freetype2 libxkbcommon wayland vulkan-icd-loader mesa glibc lib32-glibc"
-    step "installing rust toolchain + build dependencies..."
-    pac_install "rio build dependencies" $GT_DEPS
-    if gt_icd_present; then
-      ok "vulkan driver present |::| $(ls /usr/share/vulkan/icd.d/*.json 2>/dev/null | xargs -n1 basename 2>/dev/null | tr '\n' ' ')"
-    else
-      step "no vulkan driver on this deck |::| resolving one..."
-      GT_VK="$(gt_vendor_icd)"
-      [ -n "$GT_VK" ] && pac_install "vulkan driver" $GT_VK
-      gt_icd_present || pac_install "vulkan software fallback" vulkan-swrast
-      if ! gt_icd_present; then
-        fatal "no Vulkan driver could be installed — rio renders through WebGPU and needs one." \
-          "Without an ICD in /usr/share/vulkan/icd.d the terminal loads its palette and silently drops every shader." \
-          "That is exactly the 'colours change but the CRT frame never shows up' bug." \
-          "NVIDIA card?  sudo pacman -S nvidia-utils        (or nvidia-open + nvidia-utils)" \
-          "AMD card?     sudo pacman -S vulkan-radeon" \
-          "Intel chip?   sudo pacman -S vulkan-intel" \
-          "In a VM?      sudo pacman -S vulkan-swrast" \
-          "Confirm with:  vulkaninfo --summary   then re-run ./install.sh"
-      fi
-    fi
-    if ! gt_rust_ok; then
-      warn "rust present but not runnable |::| $(gt_rust_err)"
-      step "repairing rust + llvm-libs..."
-      sudo pacman -S --noconfirm rust llvm-libs || true
-    fi
-    if ! gt_rust_ok; then
-      step "falling back to rustup..."
-      sudo pacman -S --needed --noconfirm rustup || true
-      rustup default stable || true
-    fi
-    if ! gt_rust_ok; then
-      fatal "the rust toolchain on this deck is unusable — rio cannot be built." \
-        "rustc said: $(gt_rust_err)" \
-        "rio is the theme's terminal, bound to $GTKEY, so this is not optional chrome." \
-        "Repair it:  sudo pacman -S rust llvm-libs" \
-        "Or switch to rustup:  sudo pacman -S rustup && rustup default stable" \
-        "Then re-run:  ./install.sh"
-    else
-      gt_runs "$GTBIN" && step "rebuilding GPU Terminal to match this theme..." || step "building GPU Terminal with GPU shader support..."
-      GT_STAGE="$(mktemp -d)" || exit 1
-      if cargo install rioterm --root "$GT_STAGE" --version "$GTVER" --force --locked --features wgpu && gt_runs "$GT_STAGE/bin/rio"; then
-        mkdir -p "$(dirname "$GTBIN")"
-        # Stage on the destination filesystem; rename only a validated executable.
-        GT_NEW="$(mktemp "${GTBIN}.XXXXXX")" || exit 1
-        if install -m 755 "$GT_STAGE/bin/rio" "$GT_NEW"; then
-          mv -f "$GT_NEW" "$GTBIN"
-        else
-          rm -f "$GT_NEW"
-          warn "could not install Rio; retaining the existing terminal"
-        fi
-      else
-        warn "Rio build failed; retaining the existing terminal"
-      fi
-      rm -rf "$GT_STAGE"
-      GT_ALT="$(command -v rio 2>/dev/null || true)"
-      GT_PICK=""
-      if gt_runs "$GTBIN" && gt_has_gpu "$GTBIN"; then GT_PICK="$GTBIN"
-      elif [ -n "$GT_ALT" ] && gt_runs "$GT_ALT" && gt_has_gpu "$GT_ALT"; then GT_PICK="$GT_ALT"
-      fi
-      if [ -n "$GT_PICK" ]; then
-        GTBIN="$GT_PICK"; GT_OK=1
-        ok "librashader linked into $GTBIN |::| the CRT shader chain will run"
-      elif gt_runs "$GTBIN" || { [ -n "$GT_ALT" ] && gt_runs "$GT_ALT"; }; then
-        gt_runs "$GTBIN" || GTBIN="$GT_ALT"
-        warn "the rio at $GTBIN has no librashader — it will run, but the CRT shader chain is missing."
-        warn "that is the 'theme switches colours but the CRT frame never appears' case."
-        warn "rebuild with shaders when you can:"
-        warn "  cargo install rioterm --version $GTVER --force --locked --features wgpu"
-        warn "if cargo fails, read its last error — it is nearly always a missing cmake, binutils or llvm-libs."
-        warn "a distro rio counts too if it was built with the filter feature."
-        GT_OK=1
-      else
-        fatal "no runnable rio binary was produced at $GTBIN." \
-          "cargo finished but nothing executable came out, so the terminal bound to $GTKEY does not exist." \
-          "Build it by hand and read the error:" \
-          "  cargo install rioterm --version $GTVER --force --locked --features wgpu" \
-          "Check your PATH picks up ~/.cargo/bin, then re-run ./install.sh"
-      fi
-    fi
-    if [ "$GT_OK" = 1 ]; then
-      step "deploying terminal styles and GPU shaders..."
-      # rio stuff is split in 3 folders, styles/ is a full config.toml for each theme, themes/ is just
-      # the colors and shaders/ has the .slangp chain per look. rio-style copies the style over
-      # config.toml when u switch theme
-      mkdir -p "$GTCFG/themes" "$GTCFG/shaders" "$GTCFG/styles" "$GTRT" "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/scalable/apps"
-      FONT_DIR="$HOME/.local/share/fonts"
-      mkdir -p "$FONT_DIR"
-      if ! fc-list -q "Share Tech Mono" 2>/dev/null; then
-        if wget -q -O "$FONT_DIR/ShareTechMono-Regular.ttf" "https://github.com/google/fonts/raw/main/ofl/sharetechmono/ShareTechMono-Regular.ttf"; then
-          ok "Share Tech Mono landed in $FONT_DIR |::| ARCTIC stops falling back"
-        else
-          rm -f "$FONT_DIR/ShareTechMono-Regular.ttf"
-          warn "Share Tech Mono wouldnt download |::| ARCTIC rides on a fallback font"
-        fi
-      fi
-      if ! fc-list -q "VT323" 2>/dev/null; then
-        if wget -q -O "$FONT_DIR/VT323-Regular.ttf" "https://github.com/phoikoi/VT323/raw/master/fonts/ttf/VT323-Regular.ttf"; then
-          ok "VT323 landed in $FONT_DIR |::| GHOST stops falling back"
-        else
-          rm -f "$FONT_DIR/VT323-Regular.ttf"
-          warn "VT323 wouldnt download |::| GHOST rides on a fallback font"
-        fi
-      fi
-      fc-cache -f "$FONT_DIR" >/dev/null 2>&1 || true
-      if [ -f "$GTCFG/config.toml" ] && [ ! -f "$GTCFG/config.toml.pre-cyberpunk" ]; then
-        cp "$GTCFG/config.toml" "$GTCFG/config.toml.pre-cyberpunk" && ok "previous terminal config backed up"
-      fi
-      cp "$GTSRC/styles/"*.toml "$GTRT/"
-      for f in "$GTSRC/styles/"*.toml; do rm -f "$GTCFG/styles/$(basename "$f")"; done
-      cp "$GTSRC/themes/"*.toml "$GTCFG/themes/"
-      for d in "$GTSRC/shaders/"*/; do
-        n="$(basename "$d")"
-        rm -rf "$GTCFG/shaders/$n"
-        cp -r "$d" "$GTCFG/shaders/"
-      done
-      sed -i "s|__RIO_SHADERS__|$GTCFG/shaders|g" "$GTRT/"*.toml
-      for f in "$GTCFG/shaders/"*/*.slangp; do
-        [ -f "$f" ] && sed -i "s|__RIO_IMAGES__|$GTSRC/images|g" "$f"
-      done
-      cp "$GTRT/cybercore.toml" "$GTCFG/config.toml"
-      printf 'cybercore\n' > "$GTCFG/.rio-style"
-      ok "terminal styles installed |::| cybercore active, the GHOST/KITTY/SYNTHWAVE/ARCTIC/BLOODMOON/DARK/JOHNNY palettes swap in their own"
-      sed "s|__RIO_BIN__|$GTBIN|g" "$GTSRC/desktop/rio.desktop" > "$HOME/.local/share/applications/rio.desktop"
-      cp "$GTSRC/desktop/rio.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/rio.svg"
-      mkdir -p "$HOME/.local/bin"
-      ln -sfn "$GTBIN" "$HOME/.local/bin/rio" && ok "linked ~/.local/bin/rio -> $GTBIN"
-      case ":$PATH:" in
-        *":$HOME/.local/bin:"*) : ;;
-        *) warn "add ~/.local/bin to your PATH to run 'rio' from a shell" ;;
-      esac
-      update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
-      gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
-      ok "Cyber Terminal installed |::| use $GTKEY to open the Terminal."
-    fi
-fi
-
 hdr "ACTIVATE THEMING"
 [ -x "$THEME/scripts/apply_theme" ] && "$THEME/scripts/apply_theme" && ok "icon/cursor/kitty/kvantum theming applied" || warn "apply_theme not run"
 X11ENV="/etc/profile.d/cyberarch-x11-env.sh"

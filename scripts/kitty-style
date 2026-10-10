@@ -3,9 +3,12 @@ set -euo pipefail
 STYLE="${1:-cybercore}"
 [[ "$STYLE" =~ ^[a-zA-Z0-9_-]+$ ]] || exit 2
 DIR="$(cd "$(dirname "$0")" && pwd)"
-SRC="${CYBER_DIR:-$(dirname "$DIR")}/assets/rio/styles/$STYLE.toml"
+SRC="${CYBER_DIR:-$(dirname "$DIR")}/assets/kitty/styles/$STYLE.toml"
 KITTY_DIR="${KITTY_CONFIG_DIRECTORY:-${XDG_CONFIG_HOME:-$HOME/.config}/kitty}"
+EXTRA="${2:-${XDG_CONFIG_HOME:-$HOME/.config}/cyberarch/kitty_themes}"
+[ -f "$SRC" ] || SRC="$EXTRA/$STYLE.toml"
 python3 "$DIR/theme-config.py" kitty "$SRC" "$KITTY_DIR/kitty.conf"
+printf '%s\n' "$STYLE" > "$KITTY_DIR/.kitty-style"
 # Kitty's documented reload signal updates open windows without remote control.
 # No running instances is normal; the include also applies to future windows.
 pkill -USR1 -u "$(id -u)" -x kitty 2>/dev/null || true

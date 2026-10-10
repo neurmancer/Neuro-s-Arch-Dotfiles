@@ -91,7 +91,7 @@ end
 -- how the binds actually settle:
 -- user.lua loads after the theme so its binds win anyway. thing is the theme
 -- already bound its own default by then, so u end up wiht two binds on the same
--- combo.. rio opening twice, that kinda thing.
+-- combo.. Kitty opening twice, that kinda thing.
 -- so before anyhting gets bound it runs trough user.lua first with all the hl.*
 -- functions swapped for empty ones, just to see what combos it takes + any
 -- CD.rebind / CD.themeMod. then the theme skips whatever is already taken.
@@ -206,8 +206,7 @@ local function applyDefaults(mod)
 end
 
 CD.bind("SUPER + TAB", app("scripts/launcher"), "LAUNCHER")
-CD.bind("SUPER + T", hl.dsp.exec_cmd("rio"), "RIO TERMINAL")
-CD.bind("SUPER + SHIFT + T", hl.dsp.exec_cmd("cool-retro-term"), "RETRO TERMINAL")
+CD.bind("SUPER + T", hl.dsp.exec_cmd("kitty"), "KITTY TERMINAL")
 CD.bind("SUPER + ALT + D", hl.dsp.exec_cmd("discord"), "DISCORD")
 CD.bind("SUPER + E", hl.dsp.exec_cmd("thunar"), "FILES")
 CD.bind("SUPER + D", app("scripts/peek"), "PEEK")

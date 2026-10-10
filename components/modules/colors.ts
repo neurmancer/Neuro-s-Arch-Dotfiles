@@ -712,8 +712,8 @@ export const hexToRgb = (hex: string): RGB | null => {
 export const rgbToHex = ([r, g, b]: RGB) =>
     "#" + [r, g, b].map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("")
 
-// each theme has its own .toml terminal file, this maps them
-const RIO_STYLES: Record<string, string> = { NSD: "nsd", GHOST: "ghost", KITTY: "kitty", SYNTHWAVE: "synthwave", ARCTIC: "arctic", BLOODMOON: "bloodmoon", BLADE: "blade", JOHNNY: "johnny" }
+// each theme has its own Kitty color palette, this maps them
+const KITTY_STYLES: Record<string, string> = { NSD: "nsd", GHOST: "ghost", KITTY: "kitty", SYNTHWAVE: "synthwave", ARCTIC: "arctic", BLOODMOON: "bloodmoon", BLADE: "blade", JOHNNY: "johnny" }
 
 const themeCommand = (script: string, name: string) =>
     execAsync(["env", `CYBER_DIR=${CYBER_DIR}`, `${CYBER_DIR}/scripts/${script}`, name])
@@ -721,9 +721,7 @@ const themeCommand = (script: string, name: string) =>
 const syncColors = latestTask<string>(async (name, current) => {
     await themeCommand("shell-theme", name)
     if (!current()) return
-    await themeCommand("rio-style", RIO_STYLES[name] ?? "cybercore")
-    if (!current()) return
-    await themeCommand("kitty-style", RIO_STYLES[name] ?? "cybercore")
+    await themeCommand("kitty-style", KITTY_STYLES[name] ?? "cybercore")
     if (current()) applyWmFromTheme()
 })
 const syncWallpaper = latestTask<string | null>(async name => {
@@ -734,11 +732,10 @@ const syncWallpaper = latestTask<string | null>(async name => {
 // wallpaper startup has its own queue and cannot hold up subsequent colors.
 export const syncTheme = (name: string, wallpaper = false): Promise<boolean> => {
     const colors = syncColors(name)
-    syncWallpaper(wallpaper ? name : null).catch(e => {
-        print(`[theme] wallpaper for ${name}:`, e)
-        execAsync(["notify-send", "Wallpaper change failed", `${name}: ${e}`]).catch(print)
-    })
-    return colors
+    const background = syncWallpaper(wallpaper ? name : null)
+    // Color writes can progress while wallpaper starts, but completion means
+    // both parts of this selection finished successfully.
+    return Promise.all([colors, background]).then(results => results.every(Boolean))
 }
 
 let curPalette = "NETWATCH"

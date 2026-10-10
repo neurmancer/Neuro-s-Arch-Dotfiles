@@ -12,8 +12,9 @@ import tempfile
 import tomllib
 
 
-def write(path, text, inplace=False):
-    path = Path(path).resolve()
+def write(path, text):
+    # Replace the user-facing symlink, never mutate its shared/system target.
+    path = Path(path).absolute()
     path.parent.mkdir(parents=True, exist_ok=True)
     backup = path.with_name(path.name + '.before-cyberarch')
     if path.exists() and not backup.exists():
@@ -24,51 +25,10 @@ def write(path, text, inplace=False):
             stream.write(text)
             stream.flush()
             os.fsync(stream.fileno())
-        if inplace and path.exists():
-            # Rio watches the inode; stage/validate first, then copy under the lock.
-            shutil.copyfile(name, path)
-        else:
-            os.replace(name, path)
+        os.replace(name, path)
     finally:
         if os.path.exists(name):
             os.unlink(name)
-
-
-def section(text, name):
-    # Styles use ordinary TOML table headers. Keep every unrelated byte intact.
-    pattern = rf'(?ms)^\[{re.escape(name)}\][^\n]*\n.*?(?=^\[|\Z)'
-    match = re.search(pattern, text)
-    return match.group() if match else ''
-
-
-def rio(src, dst):
-    text = Path(src).read_text()
-    style = tomllib.loads(text)
-    target = Path(dst)
-    old = target.read_text() if target.exists() else ''
-    tomllib.loads(old)  # Refuse to overwrite a malformed user configuration.
-    top, sep, rest = old.partition('\n[')
-    top = re.sub(r'(?m)^theme\s*=.*\n?', '', top)
-    old = top + (sep + rest if sep else '')
-    old = re.sub(r'(?ms)^\[colors\][^\n]*\n.*?(?=^\[|\Z)', '', old)
-    colors = section(text, 'colors')
-    if colors:
-        new = old.rstrip() + '\n\n' + colors
-    elif 'theme' in style:
-        import json
-        new = 'theme = ' + json.dumps(style['theme']) + '\n' + old
-        # A named theme is part of the style, not a user preference.
-        theme = style['theme']
-        if not isinstance(theme, str) or Path(theme).name != theme:
-            raise ValueError('invalid theme filename')
-        bundled = Path(src).parent.parent / 'themes' / (theme + '.toml')
-        if bundled.exists():
-            tomllib.loads(bundled.read_text())
-            write(target.parent / 'themes' / bundled.name, bundled.read_text())
-    else:
-        raise ValueError('style has no color table or named theme')
-    tomllib.loads(new)
-    write(target, new, inplace=True)
 
 
 def kitty(src, dst):
@@ -146,7 +106,7 @@ def main():
     cfg.mkdir(parents=True, exist_ok=True)
     with (cfg / '.config-write.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        {'rio': rio, 'kitty': kitty, 'ini': lambda p, g, *args: ini(p, g, args), 'css': css}[sys.argv[1]](*sys.argv[2:])
+        {'kitty': kitty, 'ini': lambda p, g, *args: ini(p, g, args), 'css': css}[sys.argv[1]](*sys.argv[2:])
 
 
 if __name__ == '__main__':

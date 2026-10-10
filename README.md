@@ -79,7 +79,7 @@
   
 - **Quickshell lockscreen** -> ANimated loginscreen with qs.
  
-- **Terminal** -> Installs Cool-Retro-Term by Swordfish90 with a red 'Netrunner' profile, in same style of the terminal windows in-game, and the theme default terminal (Rio GPU Terminal) with _custom frames/colors/layouts_ for each theme applied on CyberArch, each theme loads a different .toml theme configuration. Along with an optional fish installation and 'SAMURAI' banner.
+- **Terminal** -> Kitty, with colors that follow the desktop palette and an optional fish shell with a SAMURAI banner.
 
 ---
 
@@ -96,8 +96,8 @@
 ## Install
 
 ```bash
-git clone https://github.com/ARCANGEL0/CyberArch-Shell.git #for original 
-cd CyberArch-Shell 
+git clone https://github.com/neurmancer/Neuro-s-Arch-Dotfiles.git
+cd Neuro-s-Arch-Dotfiles
 chmod +x install.sh
 ./install.sh
 ```
@@ -116,9 +116,19 @@ The HUD checks for a new release a few seconds after boot and offers the update 
 `J` to dismiss it until the next login. The modal lists what changed and its `UPDATE NOW` button runs the
 same `updater.sh` in a terminal so you can watch the whole flow.
 
-`updater.sh` fast-forwards your clone to the latest release tag. Local edits are stashed first (with the
-stash ref printed) and untracked files are left alone; if `install.sh` changed in the release it asks
-before re-running it, then restarts the HUD.
+`updater.sh` requires a clean checkout and a successful release lookup. It builds
+the release in a temporary worktree before fast-forwarding, waits for HUD readiness,
+and restores the previous commit if activation fails. Releases that change the
+installer or dependencies require a separate installation or package upgrade.
+Local edits are never automatically stashed.
+
+If the HUD fails, open a terminal with the compositor keybind or switch to a TTY
+and inspect `~/.local/state/cyberarch/shell.log`. Run
+`~/.config/hypr/themes/cyberpunk/scripts/restart` from the graphical session after
+repairing the error. Startup retries are bounded; restart prebuilds the replacement
+and retains the last healthy bundle for recovery.
+
+Release status and remaining desktop validation: [reliability audit](RELIABILITY_AUDIT.md).
 
 ---
 
@@ -168,8 +178,7 @@ automatically using [Kitty’s configuration reload signal](https://sw.kovidgoya
 
 | Keybind | Action |
 | --- | --- |
-| `SUPER + SHIFT + T` | Default terminal (Rio) |
-| `SUPER + SHIFT + T` | Netrunner terminal (cool-retro-term) |
+| `SUPER + T` or `SUPER + SHIFT + T` | Kitty terminal |
 | `SUPER + SHIFT + S` | Screenshot (region) |
 | `SUPER + SHIFT + R` | Start / stop screen recording |
 | `SUPER + SHIFT + K` | **Kill mode** (click a window to kill · `ESC` exits) |
@@ -232,7 +241,7 @@ cyberpunk/
 
 - Built on **[Hyprland](https://hypr.land)**, **[AGS / Aylur's GTK Shell](https://github.com/Aylur/ags)**, and **[astal](https://github.com/Aylur/astal)**.
 - Lockscreen on **[quickshell](https://quickshell.org)**.
-- Terminal: **[cool-retro-term](https://github.com/Swordfish90/cool-retro-term)**.
+- Terminal: **[Kitty](https://sw.kovidgoyal.net/kitty/)**.
 - The custom titlebars are a small cairo-bevel patch over Hyprland's **hyprbars** plugin, from original hyprbars by the Hyprland project.
 - Projekt Red obviously for the game Cyberpunk 2077 UI Designs and aesthetics.
  

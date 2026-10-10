@@ -95,22 +95,9 @@ cmd_spawn() {
 
 
     run="'$THEME/updater.sh'; ec=\$?; echo; printf '\033[1;36m>> update finished (exit %s). press ENTER to close.\033[0m ' \"\$ec\"; read _"
-      if command -v rio >/dev/null 2>&1; then
-       setsid rio --title-placeholder "CYBERARCH UPDATE" -e sh -c "$run" >/dev/null 2>&1 &
-       return 0
-        fi
-     term=""
-    for t in "${TERMINAL:-}" cool-retro-term kitty foot wezterm alacritty konsole gnome-terminal xterm; do
-      [ -n "$t" ] && command -v "$t" >/dev/null 2>&1 && { term="$t"; break; }
-    done
-    [ -z "$term" ] && { notify-send "CyberArch update" "No terminal emulator found" 2>/dev/null; exit 1; }
-    case "$term" in
-        kitty|foot)     setsid "$term" sh -c "$run" >/dev/null 2>&1 & ;;
-        wezterm)        setsid "$term" start -- sh -c "$run" >/dev/null 2>&1 & ;;
-        gnome-terminal) setsid "$term" -- sh -c "$run" >/dev/null 2>&1 & ;;
-        *)              setsid "$term" -e sh -c "$run" >/dev/null 2>&1 & ;;
+    command -v kitty >/dev/null 2>&1 || { notify-send "CyberArch update" "Kitty is required" 2>/dev/null; return 1; }
+    setsid kitty --title "CYBERARCH UPDATE" sh -c "$run" >/dev/null 2>&1 &
 
-    esac
 }
 
 cmd_apply() (

@@ -333,9 +333,8 @@ App.start({
  const names = Object.keys(PALETTES)
  const direction = request === "palette-next" ? 1 : -1
  const name = names[(names.indexOf(getActivePalette()) + direction + names.length) % names.length]
- // Acknowledge selection immediately; applyColors reports background failures.
- void applyColors(name)
- reply("ok")
+ // Selection is immediate; acknowledge completion only after all writers.
+ applyColors(name).then(applied => reply(applied ? "ok" : "superseded"), () => reply("err"))
  } catch (e) { print(e); reply("err") }
  } else if (request === "launcher") {
  execAsync(["sh", "-c", "rofi -show drun || rofi -show run"]).catch(print)
