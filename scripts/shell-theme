@@ -170,7 +170,7 @@ EOF
 mv -f "$STAGE/shell_colors.lua" "$USR/shell_colors.lua"
 
 if command -v hyprctl >/dev/null 2>&1; then
-    hyprctl eval "hl.config({general={border_size=$BSZ,col={active_border={colors={\"rgba(${ACC_R}ff)\",\"rgba(${AC2_R}ff)\"},angle=45},inactive_border=\"rgba(${ACC_R}44)\"}},decoration={rounding=$ROUND,rounding_power=$POWER,shadow={color=\"rgba(${ACC_R}${GLOW_ALPHA})\",color_inactive=\"rgba(${ACC_R}18)\",range=$GLOW_RANGE,render_power=$GLOW_RP},glow={enabled=$GLOW,color=\"rgba(${ACC_R}ff)\",range=$GLOW_RANGE,render_power=$GLOW_RP}}})" >/dev/null 2>&1
+    hyprctl eval "hl.config({general={border_size=$BSZ,col={active_border={colors={\"rgba(${ACC_R}ff)\",\"rgba(${AC2_R}ff)\"},angle=45},inactive_border=\"rgba(${ACC_R}44)\"}},decoration={rounding=$ROUND,rounding_power=$POWER,shadow={color=\"rgba(${ACC_R}${GLOW_ALPHA})\",color_inactive=\"rgba(${ACC_R}18)\",range=$GLOW_RANGE,render_power=$GLOW_RP},glow={enabled=$GLOW,color=\"rgba(${ACC_R}ff)\",range=$GLOW_RANGE,render_power=$GLOW_RP}}})" >&2
 fi
 
 if command -v gsettings >/dev/null 2>&1; then

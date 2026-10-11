@@ -26,12 +26,12 @@ start() {
 }
 ready() {
     local response
-    for _ in $(seq 1 60); do
+    for attempt in $(seq 1 60); do
         response="$(timeout 2 astal -i cyberpunk health 2>/dev/null || true)"
         [ "$response" = "$1" ] && return 0
         # A supervisor may be exiting after its final crash retry, or a legacy
         # instance may still be quitting. Retry acquiring supervision safely.
-        if (( _ % 8 == 0 )); then
+        if (( attempt % 8 == 0 )); then
             setsid "$DIR/launch-theme" 9>&- >/dev/null 2>&1 </dev/null &
         fi
         sleep 0.25

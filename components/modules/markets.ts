@@ -149,7 +149,7 @@ const savePins = () => {
     catch (e) { print("[cyber] markets save:", e) }
 }
 
-const curl = (url: string) => execAsync(["curl", "-sfL", "--max-time", "10", "-H", "User-Agent: Mozilla/5.0", url])
+const curl = (url: string) => execAsync(["curl", "-sfSL", "--max-time", "10", "-H", "User-Agent: Mozilla/5.0", url])
 const openUrl = (url: string) => execAsync(["xdg-open", url]).catch((e) => print("[cyber] open url:", e))
 
 const decodeHtml = (s: string) => String(s || "")

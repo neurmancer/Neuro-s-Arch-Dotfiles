@@ -717,6 +717,7 @@ const KITTY_STYLES: Record<string, string> = { NSD: "nsd", GHOST: "ghost", KITTY
 
 const themeCommand = (script: string, name: string) =>
     execAsync(["env", `CYBER_DIR=${CYBER_DIR}`, `${CYBER_DIR}/scripts/${script}`, name])
+        .catch(error => { throw new Error(`${script} (${name}) failed: ${error?.message || String(error) || "no diagnostic output"}`) })
 
 const syncColors = latestTask<string>(async (name, current) => {
     await themeCommand("shell-theme", name)

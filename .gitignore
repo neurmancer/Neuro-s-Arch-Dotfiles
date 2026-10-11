@@ -13,3 +13,5 @@ RELIABILITY_AUDIT.md
 !scripts/terminal-migrate.py
 
 !tests/terminal-migration-harness.py
+
+!tests/restart-recovery-harness.py
