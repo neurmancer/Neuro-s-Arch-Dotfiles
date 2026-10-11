@@ -8,13 +8,12 @@ export type CfgVal = boolean | string
 
 const DEF: Record<string, CfgVal> = {
  anim: true, animWorkspace: false, animGlitch: true, animModal: true,
- animGauge: true, animNotif: true, animMusic: true, animWheel: true,
+ animNotif: true, animMusic: true, animWheel: true,
 
  snd: true, sndNotif: true, sndNotifFile: "",
  sndWheel: true, sndWheelStart: "", sndWheelActive: "", sndWheelEnd: "",
  sndOverlay: true, sndOverlayFile: "", sndKillFile: "",
 
- gaugeBadge: "workspace", gaugeXp: "disk", gaugeHealth: "cpu", gaugeRam: "ram", gaugeStamina: "battery",
 }
 const CFG: Record<string, CfgVal> = { ...DEF }
 
@@ -22,23 +21,6 @@ const CFG: Record<string, CfgVal> = { ...DEF }
 export const SND_DIR = `${USER_DIR}/sounds`
 const CFG_PATH = `${USER_DIR}/user_config.lua`
 const CFG_KEYS = Object.keys(DEF)
-
-export const METRIC_LABEL: Record<string, string> = {
- workspace: "ACTIVE WORKSPACE",
- cpu: "CPU USAGE", cputemp: "CPU TEMPERATURE",
- ram: "RAM USAGE", ramfree: "RAM AVAILABLE", swap: "SWAP USAGE",
- disk: "STORAGE USAGE", battery: "BATTERY LEVEL",
- gpu: "GPU USAGE", vram: "VRAM USAGE",
- load: "SYSTEM LOAD", net: "NETWORK LOAD",
-}
-
-const BAR_METRICS = ["cpu", "cputemp", "ram", "ramfree", "swap", "disk", "battery", "gpu", "vram", "load", "net"]
-export const GAUGE_OPTS: Record<string, string[]> = {
- gaugeBadge: ["workspace", "cputemp", "cpu", "ram", "ramfree", "swap", "disk", "battery", "gpu", "load"],
- gaugeXp: BAR_METRICS, gaugeHealth: BAR_METRICS, gaugeRam: BAR_METRICS, gaugeStamina: BAR_METRICS,
-}
-
-
 
 const changeBus: Array<() => void> = []
 export const onConfigChange = (cb: () => void): (() => void) => {

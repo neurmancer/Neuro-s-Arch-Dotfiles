@@ -11,7 +11,7 @@ import { closeAllModals } from "./cmodal.ts"
 import { TITLE, MONO, CYAN, ACC, HEADER, txt, drawGlass, Cairo, ch } from "./glass.ts"
 import { ICONF } from "./fonts.ts"
 import { drawBtn, drawToggle, drawSlider, sectionHeader, drawKeyCap, btnPath } from "./cmodal.ts"
-import { cfgBool, cfgStr, setCfg, toggleCfg, resetCfg, adoptSound, clearSound, GAUGE_OPTS, METRIC_LABEL } from "./config.ts"
+import { cfgBool, cfgStr, toggleCfg, resetCfg, adoptSound, clearSound } from "./config.ts"
 import {
     wmBool, wmNum, wmStr, setWm, toggleWm, resetWm, wmCornersIs,
     CORNER_OPTS, CORNER_LABEL, OPACITY_MODES, OPACITY_MODE_LABEL, type WmVal,
@@ -104,7 +104,6 @@ const drawTabBar = (ctx, g, x, y, w) => {
                 if (tab !== id) {
                     tab = id
                     kbScroll = 0
-                    cfgOpen = null
                     if (tab !== "wall") { wallOpen = null; wallScroll = 0 }
                     area?.queue_draw()
                 }
@@ -209,7 +208,6 @@ export const ThemesWindow = () => {
             const next = idx <= 0 ? TABS.length - 1 : idx - 1
             tab = TABS[next][1]
             kbScroll = 0
-            cfgOpen = null
             if (tab !== "wall") { wallOpen = null; wallScroll = 0 }
             area?.queue_draw()
             return true
@@ -220,7 +218,6 @@ export const ThemesWindow = () => {
             const next = idx >= TABS.length - 1 ? 0 : idx + 1
             tab = TABS[next][1]
             kbScroll = 0
-            cfgOpen = null
             if (tab !== "wall") { wallOpen = null; wallScroll = 0 }
             area?.queue_draw()
             return true
@@ -286,7 +283,6 @@ export const ThemesWindow = () => {
                     releaseKeys()
                     tab = TABS[0][1]
                     kbScroll = 0
-                    cfgOpen = null
                     wallOpen = null
                     wallScroll = 0
                     area?.queue_draw()
@@ -329,13 +325,6 @@ const SECTIONS: [string, ColRow[]][] = [
         ["modalhov", "MODAL HOVER", false],
         ["wheelbg", "WHEEL BACKGROUND", true],
         ["wheelfg", "WHEEL FOREGROUND", false],
-    ]],
-    ["// GAUGE BARS", [
-        ["badge", "BADGE", false],
-        ["xpbar", "EXPERIENCE BAR", false],
-        ["cpu", "HEALTH BAR", false],
-        ["ram", "RAM BAR", false],
-        ["stamina", "STAMINA BAR", false],
     ]],
     ["// DOCK", [
         ["dockv", "VERTICAL DOCK", false],
@@ -2313,7 +2302,7 @@ export const drawWm = (ctx, g, x, y, w) => {
     }
 }
 
-type CfgKind = "tog" | "snd" | "sel" | "car"
+type CfgKind = "tog" | "snd" | "car"
 type CfgRow = { t: CfgKind; k: string; label: string; dep?: string; grp?: string; master?: boolean }
 
 const CFG_SECTIONS: [string, CfgRow[]][] = [
@@ -2322,7 +2311,6 @@ const CFG_SECTIONS: [string, CfgRow[]][] = [
         { t: "tog", k: "animWorkspace", label: "WORKSPACE-SWITCH ANIMATION" },
         { t: "tog", k: "animGlitch", label: "WORKSPACE GLITCH OVERLAY" },
         { t: "tog", k: "animModal", label: "MODAL / SYSTEM POPUP ANIMATIONS" },
-        { t: "tog", k: "animGauge", label: "MONITOR GAUGES ANIMATION" },
         { t: "tog", k: "animNotif", label: "NOTIFICATION ANIMATIONS" },
         { t: "tog", k: "animMusic", label: "MUSIC PLAYER ANIMATIONS" },
         { t: "tog", k: "animWheel", label: "QUICKHACK WHEEL ANIMATIONS" },
@@ -2346,15 +2334,10 @@ const CFG_SECTIONS: [string, CfgRow[]][] = [
             { t: "snd", k: "sndKillFile", label: "KILL_APP", grp: "ovlGrp" },
     ]],
 
-    ["// ::gauge monitors", [
-        { t: "sel", k: "gaugeBadge", label: "BADGE" }, { t: "sel", k: "gaugeXp", label: "EXPERIENCE BAR" },
-        { t: "sel", k: "gaugeHealth", label: "HEALTH BAR" }, { t: "sel", k: "gaugeRam", label: "RAM BAR" },
-        { t: "sel", k: "gaugeStamina", label: "STAMINA BAR" },
-    ]],
 ]
 
 const CFG_DEP: Record<string, string> = {
-    animWorkspace: "anim", animGlitch: "anim", animModal: "anim", animGauge: "anim", animNotif: "anim", animMusic: "anim", animWheel: "anim",
+    animWorkspace: "anim", animGlitch: "anim", animModal: "anim", animNotif: "anim", animMusic: "anim", animWheel: "anim",
     sndNotif: "snd", sndNotifFile: "sndNotif",
     sndWheel: "snd", sndWheelStart: "sndWheel", sndWheelActive: "sndWheel", sndWheelEnd: "sndWheel",
     sndOverlay: "snd", sndOverlayFile: "sndOverlay", sndKillFile: "sndOverlay",
@@ -2365,7 +2348,6 @@ const CFG_FALLBACK: Record<string, string> = {
     sndOverlayFile: "active.ogg", sndKillFile: "kill.ogg",
 }
 
-let cfgOpen: string | null = null
 let cfgExpand: Record<string, boolean> = {}
 let extPicker = ""
 sh("for c in zenity kdialog yad; do command -v $c >/dev/null 2>&1 && { echo $c; break; }; done").then((o) => { extPicker = String(o || "").trim() })
@@ -2419,14 +2401,14 @@ const drawCfgRow = (ctx, g, x, ry, w, r: CfgRow, hit: boolean) => {
 
     if (r.t === "car") {
         const open = cfgExpand[r.k] === true
-        drawBtn(ctx, push, x + 16, ry + 4, 260, 24, `${open ? "▾" : "▸"}  ${r.label}`, () => { cfgExpand[r.k] = !open; cfgOpen = null; ctrl.requestDraw() }, open, open ? (USER.cyan as any) : (dis ? [0.5, 0.54, 0.58] : g.col), "", 12)
+        drawBtn(ctx, push, x + 16, ry + 4, 260, 24, `${open ? "▾" : "▸"}  ${r.label}`, () => { cfgExpand[r.k] = !open; ctrl.requestDraw() }, open, open ? (USER.cyan as any) : (dis ? [0.5, 0.54, 0.58] : g.col), "", 12)
         return
     }
 
     txt(ctx, lx, ry + 21, r.label, TITLE, r.master ? 13 : 12, lcol, la, 1, r.master ? 0.3 : 0)
 
     if (r.t === "tog") {
-        drawToggle(ctx, push, x + w - 58, ry + 4, cfgBool(r.k), () => { toggleCfg(r.k); cfgOpen = null; ctrl.requestDraw() }, dis, g.col, 1.35, USER.cyan as any)
+        drawToggle(ctx, push, x + w - 58, ry + 4, cfgBool(r.k), () => { toggleCfg(r.k); ctrl.requestDraw() }, dis, g.col, 1.35, USER.cyan as any)
         return
     }
 
@@ -2440,12 +2422,11 @@ const drawCfgRow = (ctx, g, x, ry, w, r: CfgRow, hit: boolean) => {
         return
     }
 
-    const cur = cfgStr(r.k), open = cfgOpen === r.k
-    drawBtn(ctx, push, x + w - 302, ry + 3, 300, 26, `${METRIC_LABEL[cur] ?? cur}   ${open ? "▴" : "▾"}`, () => { cfgOpen = open ? null : r.k; ctrl.requestDraw() }, open, g.col, "", 12.5)
+
 }
 
 export const drawConfig = (ctx, g, x, y, w) => {
-    const gate = cfgOpen ? noPush : g.push
+    const gate = g.push
     const bh = 38, half = (w - 10) / 2
     drawBtn(ctx, gate, x, y, half, bh, "LOAD USER DIR", () => sh(`xdg-open "${USER_DIR}"`), false, g.col, "", 13)
     drawBtn(ctx, gate, x + half + 10, y, half, bh, "RELOAD CYBERARCH", () => { reloadHyprland() }, false, g.col, "", 13)
@@ -2469,7 +2450,6 @@ export const drawConfig = (ctx, g, x, y, w) => {
     if (kbScroll > maxScroll) kbScroll = maxScroll
     if (kbScroll < 0) kbScroll = 0
 
-    let pop: { key: string; bx: number; by: number; bw: number } | null = null
 
     ctx.save()
     ctx.rectangle(x - 4, visTop, w + 8, visHeight)
@@ -2480,14 +2460,13 @@ export const drawConfig = (ctx, g, x, y, w) => {
             if (ry + GSEC_H < visTop || ry > visBottom) continue
             sectionHeader(ctx, g, x, ry + 16, it.label, w - 92, 12)
             const shown = ry >= visTop - 1 && ry + 24 <= visBottom + 1
-            drawBtn(ctx, shown ? gate : noPush, x + w - 88, ry + 1, 88, 22, "DEFAULTS", () => { resetCfg(it.keys ?? []); cfgOpen = null; ctrl.requestDraw() }, false, [1, 0.4, 0.44], "", 11)
+            drawBtn(ctx, shown ? gate : noPush, x + w - 88, ry + 1, 88, 22, "DEFAULTS", () => { resetCfg(it.keys ?? []); ctrl.requestDraw() }, false, [1, 0.4, 0.44], "", 11)
             continue
         }
         if (ry + GROW_H < visTop || ry > visBottom) continue
         const hit = ry >= visTop - 1 && ry + GROW_H <= visBottom + 1
         const r = it.row!
-        if (r.t === "sel" && cfgOpen === r.k) pop = { key: r.k, bx: x + w - 302, by: ry + 29, bw: 300 }
-        drawCfgRow(ctx, g, x, ry, w, r, hit && !cfgOpen)
+        drawCfgRow(ctx, g, x, ry, w, r, hit)
     }
     ctx.restore()
 
@@ -2500,18 +2479,4 @@ export const drawConfig = (ctx, g, x, y, w) => {
         ctx.newPath(); ctx.moveTo(x + w + 4, visTop + fillH); ctx.lineTo(x + w + 4, visTop + fillH + barH); ctx.stroke()
     }
 
-    if (pop) {
-        const opts = GAUGE_OPTS[pop.key] ?? []
-        const ih = 27, listH = opts.length * ih + 8
-        let ly = pop.by + 2
-        if (ly + listH > visBottom) ly = Math.max(visTop, pop.by - 33 - listH)
-        ctx.setSourceRGBA(0.02, 0.05, 0.07, 0.97); ctx.rectangle(pop.bx, ly, pop.bw, listH); ctx.fill()
-        ctx.setSourceRGBA(g.accent[0], g.accent[1], g.accent[2], 0.7); ctx.setLineWidth(1)
-        ctx.rectangle(pop.bx + 0.5, ly + 0.5, pop.bw - 1, listH - 1); ctx.stroke()
-        const cur = cfgStr(pop.key)
-        opts.forEach((o, i) => {
-            drawBtn(ctx, g.push, pop!.bx + 3, ly + 3 + i * ih, pop!.bw - 6, ih - 2, METRIC_LABEL[o] ?? o, () => { setCfg(pop!.key, o); cfgOpen = null; ctrl.requestDraw() }, cur === o, cur === o ? (USER.cyan as any) : g.col, "", 12)
-        })
-        g.push({ kind: "btn", bx0: g.X, by0: g.Y, bx1: g.X + g.w, by1: g.Y + g.h, on: () => { cfgOpen = null; ctrl.requestDraw() } })
-    }
 }

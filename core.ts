@@ -12,7 +12,6 @@ import { COMPONENTS_DIR, CYBER_DIR, USER_DIR, RUNTIME_DIR, SCREEN_WIDTH, SCREEN_
 import { loadUserColors, PALETTES, getActivePalette } from "./components/modules/colors.ts"
 import { applyColors } from "./components/modules/themesettings.ts"
 import { applyWmRules, applyWmFromTheme } from "./components/modules/wmconfig.ts"
-import { Monitors, setWorkspaceBadge } from "./components/modules/monitors.ts"
 import { SidePanel, openCityModal, openForecastModal } from "./components/modules/sidepanel.ts"
 import { MarketsPanel, openMarketsModal } from "./components/modules/markets.ts"
 import { openTimeModal } from "./components/modules/timeset.ts"
@@ -59,7 +58,6 @@ const toggleWidgets = () => {
 }
 
 const WRAP_MARGINS: Record<string, [number, number, number, number]> = {
- monitors: [20, 0, 0, 20],
  sidepanel: [26, 28, 0, 0],
  toggles: [0, 0, 0, -5],
 }
@@ -213,10 +211,7 @@ const wireSocket = () => {
   try {
   const [bytes] = stream.read_line_finish(res)
   if (!bytes) { disconnect(); return }
-  const line = new TextDecoder().decode(bytes), ev = line.split(">>")[0], data = line.slice(ev.length + 2)
-  if (ev === "workspace") setWorkspaceBadge(data.trim())
-  else if (ev === "workspacev2") setWorkspaceBadge(data.split(",")[1]?.trim() || data.split(",")[0]?.trim())
-  else if (ev === "focusedmon") setWorkspaceBadge(data.split(",")[1]?.trim())
+  const line = new TextDecoder().decode(bytes), ev = line.split(">>")[0]
   if (ev.startsWith("monitoradded") || ev.startsWith("monitorremoved")) { queueMonitorSync(); pickRefresh() }
   if (EVENT_HITS.has(ev)) pickRefresh()
   pump()
@@ -256,7 +251,6 @@ const queueMonitorSync = () => {
 const createMonitorHud = (mon) => {
  const first = hudWins.length
  const S = scaleOf(mon)
- surface(mon, "monitors", Anchor.TOP | Anchor.LEFT, Monitors(mon))
  { const sw = surface(mon, "sidepanel", Anchor.TOP | Anchor.RIGHT, SidePanel(mon)); (sw as any)._rectHit = true }
  { const mw = surface(mon, "markets", Anchor.TOP | Anchor.RIGHT, MarketsPanel(mon), { margin_top: Math.round(560 * S) }); (mw as any)._rectHit = true }
  { const hw = surface(mon, "hordock", Anchor.BOTTOM | Anchor.LEFT, HorizDock(mon)); (hw as any)._rectHit = true }
@@ -462,7 +456,6 @@ App.start({
 
  timeout(400, applyHudInputAll); timeout(1200, applyHudInputAll)
  refreshWins(); wireSocket()
- execAsync(["hyprctl", "activeworkspace", "-j"]).then((s) => { try { setWorkspaceBadge(JSON.parse(s).name) } catch {} }).catch(() => {})
  interval(30000, refreshWins)
  shellReady = true
  } catch (e) { print("[startup]", e); App.quit() }

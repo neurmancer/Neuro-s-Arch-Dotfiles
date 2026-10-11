@@ -30,43 +30,6 @@ const gib = (kb: number) => (kb / 1048576).toFixed(1)
 
 
 
-let _pi = 0, _pt = 0
-const cpuFrac = () => {
- const line = read("/proc/stat").split("\n")[0]
- const n = line.split(/\s+/).slice(1).map(Number)
- if (n.length < 4) return 0
- const idle = n[3] + (n[4] || 0)
- const total = n.reduce((a, b) => a + (b || 0), 0)
- const di = idle - _pi, dt = total - _pt
- _pi = idle; _pt = total
- return dt > 0 ? Math.max(0, Math.min(1, 1 - di / dt)) : 0}
-const cpuModel = () => {
- const m = read("/proc/cpuinfo").split("\n").find(l => l.startsWith("model name"))
- return (m?.split(":")[1] ?? "CPU")
- .replace(/\(R\)|\(TM\)|CPU|Processor/g, "")
- .replace(/@.*$/, "").replace(/\s+/g, " ").trim().toUpperCase()
-}
-const cpuGHz = () => {
- const mhz = read("/proc/cpuinfo").split("\n")
- .filter(l => l.startsWith("cpu MHz"))
- .map(l => parseFloat(l.split(":")[1]))
- if (!mhz.length) return ""
- const avg = mhz.reduce((a, b) => a + b, 0) / mhz.length
- return `${(avg / 1000).toFixed(2)} GHz`
-}
-const cpuStat = (): Stat => {
-  cpuFrac()
-  const s = {
-  key: "cpu", color: NEON.red, icon: "\uf2db",
-  label: "CPU", sublabel: cpuModel(),
-  frac: Variable(0), percent: Variable("0%"), substat: Variable(""),
-  }
-  interval(1000, () => {
-  const fr = cpuFrac()
-  s.frac.set(fr); s.percent.set(pct(fr)); s.substat.set(cpuGHz())
-  })
-  return s
-}
 const gpuCard: string | null = (() => {
   for (let i = 0; i < 4; i++) {
   const dev = `/sys/class/drm/card${i}/device`
@@ -118,23 +81,6 @@ const meminfo = (key: string) => {
  return l ? parseInt(l.split(/\s+/)[1]) : 0
 }
 
-
-const ramStat = (): Stat => {
- const total = meminfo("MemTotal")
- const s = {
- key: "ram", color: NEON.magenta, icon: "\ueb8d",
- label: "RAM",
- sublabel: `${Math.round(total / 1048576)}GB`,
- frac: Variable(0), percent: Variable("0%"), substat: Variable(""),
- }
- interval(1000, () => {
- const avail = meminfo("MemAvailable")
- const used = total - avail
- const fr = total ? used / total : 0
- s.frac.set(fr); s.percent.set(pct(fr)); s.substat.set(`${gib(used)} GB`)
- })
-   return s
-   }
 
 const vramCard: string | null = (() => {
    for (let i = 0; i < 4; i++) {
@@ -265,4 +211,3 @@ export const stopModalStats = () => {
   let h: any
   while ((h = live.pop())) { try { h.cancel() } catch {} }
 }
-export const buildStats = (): Stat[] => [cpuStat(), ramStat()]

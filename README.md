@@ -46,13 +46,6 @@
 
 > Those are the original versions that I'll keeop 'till I fuck with them
 
-- **Health bars** -> The in-game UI bars meant for Health, Stamina, RAM and Level are copied to provide system monitors:
-  - The level badge shows the current active workspace, like [1], [2] and etc.
-  -  The Health bars provide average usage in % of CPU load using /proc/stat
-  -  The RAM bars...well they provide RAM Memory usage, with ramStat()
-  -  the top bar on health for experience, provides the current filesystem storage as `Used/Total` 
-  -  The Stamina bar provides the current battery level (if AC, will just stay at 100%)
-
 - **Corner widgets** -> Renders the same UI style of the game UI shortcuts like Radio, Vehicle, Phone, Cyberware item etc
   -  Radio shortcut as Music Player (Toggleable by clicking, or SUPER + SHIFT + O)
   -  System controls for rest of shortcuts like Brightness, Volume, Microphone, Wifi, Bluetooth, Record Screen
