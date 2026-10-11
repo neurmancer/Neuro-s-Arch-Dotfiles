@@ -1,6 +1,4 @@
 NOTES.md
-#excludes already tracked gen-map.py
-*.py 
 
 # Runtime configuration helper is shipped with the theme.
 !scripts/theme-config.py
@@ -10,8 +8,5 @@ __pycache__/
 
 
 RELIABILITY_AUDIT.md
-!scripts/terminal-migrate.py
 
-!tests/terminal-migration-harness.py
-
-!tests/restart-recovery-harness.py
+DESIGN_SHIT.md
