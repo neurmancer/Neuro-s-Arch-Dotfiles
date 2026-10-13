@@ -4,7 +4,7 @@ import Gdk from "gi://Gdk?version=3.0"
 import { interval, timeout, execAsync } from "astal"
 import AstalNotifd from "gi://AstalNotifd"
 import { toggleModal, isModalOpen, onModalChange } from "./cmodal.ts"
-import { toggleNotifHud, isNotifHudOpen, onNotifHudChange, notifCount } from "./notifmessages.ts"
+import { toggleNotifHud, isNotifHudOpen, notifCount } from "./notifmessages.ts"
 import { togglePlayer, isPlayerOpen, onPlayerChange, playPauseActive } from "./player.ts"
 import { makePlane, strokePath, tiltText, tiltImage, fillQuad } from "./proj.ts"
 import { NEON, f, RGB, onColorChange, imgTint, neonBtn, notifBubble } from "./colors.ts"
@@ -48,8 +48,6 @@ const HSW = 50, HSH = 48, HG = 8
 const BADGE = 19, BGAP = 5
 
 const VPLANE_W = BADGE + BGAP + VSW
-const VPLANE_H = 4 * VSH + 3 * VG - 15
-const vsp = makePlane({ w: VPLANE_W, h: VPLANE_H, yaw: -30, pitch: 12, roll: 1, focal: 1050, dist: 1050, pad: 20 })
 
 const HPLANE_W = 4 * HSW + 3 * HG
 const HPLANE_H = HSH + BGAP + BADGE -15
@@ -172,14 +170,19 @@ const makeHover = (layout: typeof VLAYOUT, hv: any, getHovered: () => string | n
  return { kick, cancel: () => hoverT && (hoverT.cancel(), (hoverT = null)) }
 }
 
-const VertDock = (mon?: any) => {
+const VertDock = (mon?: any, includeNotifications = true) => {
+ const layout = VLAYOUT.filter(s => includeNotifications || s.k !== "notification")
+     .map((s, i) => ({ ...s, y: i * (VSH + VG) }))
+ const vsp = makePlane({ w: VPLANE_W, h: layout.length * VSH + (layout.length - 1) * VG - 15,
+     yaw: -30, pitch: 12, roll: 1, focal: 1050, dist: 1050, pad: 20 })
  const S = scaleOf(mon)
+ let destroyed = false
  const on = {}, open = {}, hv = {}
   const area = DrawingArea({}); area.set_size_request(Math.round((vsp.width + 10) * S), Math.round((vsp.height + 20) * S)); _dockArea = area
  const recolorV = onColorChange(() => area.queue_draw())
  area.connect("draw", (_w, ctx) => {
  ctx.scale(S, S)
- for (const s of VLAYOUT) {
+ for (const s of layout) {
  const t = tileOf(s.k), hov = hv[s.k] || 0, edge = (open[s.k] || (neonBtn.value && hov > 0.04)) ? NEON.dockvh : NEON.dockv
  const fr = vertSlotFrame(s.x, s.y, s.w, s.h)
  const [br, bg, bb] = f([4, 9, 13])
@@ -216,12 +219,11 @@ const VertDock = (mon?: any) => {
  return false
  })
  const hitSlot = (x: number, y: number): string | null => {
- for (const s of VLAYOUT) if (pip(x, y, vertSlotFrame(s.x, s.y, s.w, s.h).map(([u, v]) => vsp.project(u, v)) as [number, number][])) return s.k
- for (const s of HLAYOUT) if (pip(x, y, horizSlotFrame(s.x, s.y, s.w, s.h).map(([u, v]) => hsp.project(u, v)) as [number, number][])) return s.k
+ for (const s of layout) if (pip(x, y, vertSlotFrame(s.x, s.y, s.w, s.h).map(([u, v]) => vsp.project(u, v)) as [number, number][])) return s.k
  return null
  }
  let openRefresh = () => {}
- const hover = makeHover(VLAYOUT, hv, () => hoverBus.key, area)
+ const hover = makeHover(layout, hv, () => hoverBus.key, area)
  hoverers.push(hover.kick)
  const evt = EventBox({ child: area })
  let musicTap: any = null
@@ -229,27 +231,30 @@ const VertDock = (mon?: any) => {
  evt.connect("button-press-event", (_w, e) => { let x = 0, y = 0; try { const c = e.get_coords?.(); if (c) { x = c[1] / S; y = c[2] / S } } catch {} const k = hitSlot(x, y); if (!k) return false; if (k === "music") { let dbl = false; try { dbl = e.get_event_type() === Gdk.EventType.DOUBLE_BUTTON_PRESS } catch {} if (dbl) { if (musicTap) { musicTap.cancel(); musicTap = null } playPauseActive() } else { if (musicTap) musicTap.cancel(); musicTap = timeout(230, () => { musicTap = null; togglePlayer(); openRefresh() }) } } else if (k === "notification") { toggleNotifHud(); openRefresh() } else if (k === "rec") { sh(`${CYBER_DIR}/scripts/screenrecord`); openRefresh() } else { toggleModal(k); openRefresh() } return false })
  evt.connect("motion-notify-event", (_w, e) => { let x = 0, y = 0; try { const c = e.get_coords?.(); if (c) { x = c[1] / S; y = c[2] / S } } catch {} hoverBus.key = hitSlot(x, y); kickHover(); return false })
  evt.connect("leave-notify-event", () => { hoverBus.key = null; kickHover(); return false })
- openRefresh = () => { let ch = false; for (const s of VLAYOUT) { const o = s.k === "music" ? isPlayerOpen() : s.k === "notification" ? isNotifHudOpen() : isModalOpen(s.k); if (o !== open[s.k]) { open[s.k] = o; ch = true } } if (ch) area.queue_draw() }
- const stateRefresh = () => { VLAYOUT.forEach(s => { const t = tileOf(s.k); (t.state ? t.state() : Promise.resolve(true)).then(v => { if (v !== on[s.k]) { on[s.k] = v; area.queue_draw() } }).catch(() => {}) }) }
+ openRefresh = () => { let ch = false; for (const s of layout) { const o = s.k === "music" ? isPlayerOpen() : s.k === "notification" ? isNotifHudOpen() : isModalOpen(s.k); if (o !== open[s.k]) { open[s.k] = o; ch = true } } if (ch) area.queue_draw() }
+ const stateRefresh = () => { if (destroyed || !area.get_mapped()) return; layout.forEach(s => { const t = tileOf(s.k); (t.state ? t.state() : Promise.resolve(true)).then(v => { if (destroyed) return; if (v !== on[s.k]) { on[s.k] = v; area.queue_draw() } }).catch(() => {}) }) }
  stateRefresh()
  let mTick: any = null
  const eqPump = () => {
-     if (!musicPlaying || !animOn("animMusic")) { if (mTick) { mTick.cancel(); mTick = null } return }
+     if (destroyed || !area.get_mapped() || !musicPlaying || !animOn("animMusic")) { if (mTick) { mTick.cancel(); mTick = null } return }
      for (let i = 0; i < eqBars.length; i++) eqBars[i] = 0.12 + Math.random() * 0.88
      area.queue_draw()
      if (!mTick) mTick = interval(110, eqPump)
  }
- const musicPoll = () => pollState("playerctl -a status 2>/dev/null").then(o => { const p = /playing/i.test(o); musicPlaying = p; if (p !== on["music"]) { on["music"] = p; area.queue_draw() } eqPump() }).catch(() => {})
+ const musicPoll = () => { if (destroyed || !area.get_mapped()) return; return pollState("playerctl -a status 2>/dev/null").then(o => { if (destroyed) return; const p = /playing/i.test(o); musicPlaying = p; if (p !== on["music"]) { on["music"] = p; area.queue_draw() } eqPump() }).catch(() => {}) }
  musicPoll()
  openRefresh()
- onModalChange(openRefresh); onPlayerChange(openRefresh); onNotifHudChange(openRefresh)
+ const offModal = onModalChange(openRefresh), offPlayer = onPlayerChange(openRefresh)
+ area.connect("map", () => { stateRefresh(); musicPoll(); openRefresh() })
+ area.connect("unmap", () => { if (mTick) { mTick.cancel(); mTick = null }; hover.cancel(); hoverBus.key = null })
  const a = interval(6000, stateRefresh), mp = interval(1500, musicPoll)
- area.connect("destroy", () => { a.cancel(); mp.cancel(); mTick && mTick.cancel(); hover.cancel(); recolorV() })
+ area.connect("destroy", () => { destroyed = true; a.cancel(); mp.cancel(); mTick && mTick.cancel(); hover.cancel(); recolorV(); offModal(); offPlayer(); if (musicTap) musicTap.cancel(); hoverers.splice(hoverers.indexOf(hover.kick), 1); if (_dockArea === area) _dockArea = null })
   return evt
 }
 
 const HorizDock = (mon?: any) => {
  const S = scaleOf(mon)
+ let destroyed = false
  const on = {}, open = {}, hv = {}
   const area = DrawingArea({}); area.set_size_request(Math.round(hsp.width * S), Math.round(hsp.height * S))
  const recolorH = onColorChange(() => area.queue_draw())
@@ -282,15 +287,17 @@ const HorizDock = (mon?: any) => {
  evt.connect("motion-notify-event", (_w, e) => { let x = 0, y = 0; try { const c = e.get_coords?.(); if (c) { x = c[1] / S; y = c[2] / S } } catch {} hoverBus.key = hitSlot(x, y); kickHover(); return false })
  evt.connect("leave-notify-event", () => { hoverBus.key = null; kickHover(); return false })
  openRefresh = () => { for (const s of HLAYOUT) open[s.k] = isModalOpen(s.k); area.queue_draw() }
- const stateRefresh = () => { HLAYOUT.forEach(s => { const t = tileOf(s.k); (t.state ? t.state() : Promise.resolve(true)).then(v => { if (v !== on[s.k]) { on[s.k] = v; area.queue_draw() } }).catch(() => {}) }) }
+ const stateRefresh = () => { if (destroyed || !area.get_mapped()) return; HLAYOUT.forEach(s => { const t = tileOf(s.k); (t.state ? t.state() : Promise.resolve(true)).then(v => { if (destroyed) return; if (v !== on[s.k]) { on[s.k] = v; area.queue_draw() } }).catch(() => {}) }) }
  stateRefresh()
  openRefresh()
- onModalChange(openRefresh)
+ const offModal = onModalChange(openRefresh)
+ area.connect("map", () => { stateRefresh(); openRefresh() })
+ area.connect("unmap", () => { hover.cancel(); hoverBus.key = null })
  const a = interval(6000, stateRefresh)
- area.connect("destroy", () => { a.cancel(); hover.cancel(); recolorH() })
+ area.connect("destroy", () => { destroyed = true; a.cancel(); hover.cancel(); recolorH(); offModal(); hoverers.splice(hoverers.indexOf(hover.kick), 1) })
   return evt
 }
 
-export const Toggles = (mon?: any) => Box({ className: "dock", children: [VertDock(mon)] })
+export const Toggles = (mon?: any, includeNotifications = true) => Box({ className: "dock", children: [VertDock(mon, includeNotifications)] })
 
 export { HorizDock }

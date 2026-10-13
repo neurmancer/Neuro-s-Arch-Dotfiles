@@ -15,7 +15,7 @@ import { applyWmRules, applyWmFromTheme } from "./components/modules/wmconfig.ts
 import { SidePanel, openCityModal, openForecastModal } from "./components/modules/sidepanel.ts"
 import { MarketsPanel, openMarketsModal } from "./components/modules/markets.ts"
 import { openTimeModal } from "./components/modules/timeset.ts"
-import { Toggles, HorizDock } from "./components/modules/dock.ts"
+import { ControlsTray, toggleControlsTray } from "./components/modules/controls-tray.ts"
 import { OsdWindow } from "./components/modules/osd.ts"
 import { NotifPopupWindow, notifReadCurrent, notifDismiss } from "./components/modules/notifpopup.ts"
 import { NotifHudWindow, toggleNotifHud, dismissAll, isDetailView } from "./components/modules/notifmessages.ts"
@@ -59,7 +59,6 @@ const toggleWidgets = () => {
 
 const WRAP_MARGINS: Record<string, [number, number, number, number]> = {
  sidepanel: [26, 28, 0, 0],
- toggles: [0, 0, 0, -5],
 }
 const surface = (mon, name, anchor, child, extra = {}) => {
  const S = scaleOf(mon)
@@ -253,8 +252,9 @@ const createMonitorHud = (mon) => {
  const S = scaleOf(mon)
  { const sw = surface(mon, "sidepanel", Anchor.TOP | Anchor.RIGHT, SidePanel(mon)); (sw as any)._rectHit = true }
  { const mw = surface(mon, "markets", Anchor.TOP | Anchor.RIGHT, MarketsPanel(mon), { margin_top: Math.round(560 * S) }); (mw as any)._rectHit = true }
- { const hw = surface(mon, "hordock", Anchor.BOTTOM | Anchor.LEFT, HorizDock(mon)); (hw as any)._rectHit = true }
- { const tw = surface(mon, "toggles", Anchor.BOTTOM | Anchor.LEFT, Toggles(mon)); (tw as any)._rectHit = true }
+ surface(mon, "controls-tray", Anchor.BOTTOM | Anchor.LEFT, ControlsTray(mon), {
+   margin_top: 0, margin_right: 0, margin_bottom: 0, margin_left: 0,
+ })
  for (const w of hudWins.slice(first)) {
  w._widgetsHidden = !widgetsVisible
  if (!widgetsVisible) w.visible = false
@@ -378,6 +378,9 @@ App.start({
  } else if (request === "record-stop") {
  try { setRecording(false) } catch (e) { print(e) }
  reply("ok")
+ } else if (request === "controls-tray") {
+ try { reply(toggleControlsTray() ? "shown" : "hidden") }
+ catch (e) { print(e); reply("err") }
  } else if (request === "widgets-visible") {
  reply(widgetsVisible ? "shown" : "hidden")
  } else if (request === "toggle-widgets") {

@@ -154,6 +154,7 @@ end
 doScan()
 
 CD.actions = {
+    { id="hud.controls", label="CONTROLS TRAY", mod="SUPER + ALT", key="C", group="deck", run=sock("controls-tray") },
     { id="hud.widgets", label="SHOW / HIDE WIDGETS", mod="SUPER + ALT", key="H", group="deck", run=sock("toggle-widgets") },}
 
 function CD.bind(combo, run, label, opts)

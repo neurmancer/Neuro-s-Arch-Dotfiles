@@ -15,6 +15,18 @@ $line:  rgba(255, 45, 61, 0.30);
 window.aug, .aug { background-color: transparent; }
 .aug-wrap { background-color: transparent; }
 
+// The controls tab meets the physical bottom/left edge, without GTK button chrome.
+.controls-tray-wrap, .controls-tray, .controls-tray-tab {
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    min-width: 0;
+    min-height: 0;
+}
+
 // ── left system meters (tilted 3D canvas, sizes itself) ──────────────────────
 // ── right side panel ─────────────────────────────────────────────────────────
 .sidepanel-wrap { margin: 0; }

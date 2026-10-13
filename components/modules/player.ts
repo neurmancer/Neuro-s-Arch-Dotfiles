@@ -354,7 +354,10 @@ export const togglePlayer = () => {
  pArea && pArea.queue_draw()
 }
 const pCbs: any[] = []
-export const onPlayerChange = (cb) => { pCbs.push(cb) }
+export const onPlayerChange = (cb) => {
+ pCbs.push(cb)
+ return () => { const i = pCbs.indexOf(cb); if (i >= 0) pCbs.splice(i, 1) }
+}
 const pFire = () => { for (const cb of pCbs) cb() }
 export const closePlayer = () => { if (!visible && introTarget === 0) return; visible = false; introTarget = 0; startTimers(); pFire() }
 export const isPlayerOpen = () => visible

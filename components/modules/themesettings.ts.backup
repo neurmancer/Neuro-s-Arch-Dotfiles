@@ -1169,8 +1169,8 @@ const drawKeybinds = (ctx, g, x, y, w) => {
 }
 
 const WALL_THEMES: [string, string][] = [
-    ["NETWATCH", "netwatch"], ["SYNTHWAVE", "synthwave"], ["JOHNNY", "johnny"], ["KITTY", "kitty"],
-    ["BLADE", "blade_runner"], ["BLOODMOON", "bloodmoon"], ["GHOST", "ghost"], ["ARCTIC", "arctic"],
+    ["NETWATCH", "netwatch"], ["SYNTHWAVE", "synthwave"], ["JOHNNY", "johnny"],
+    ["BLADE", "blade_runner"], ["GHOST", "ghost"],
 ]
 
 const WALL_EXTS = ["mp4", "webm", "mkv", "mov", "png", "jpg", "jpeg", "webp", "gif"]

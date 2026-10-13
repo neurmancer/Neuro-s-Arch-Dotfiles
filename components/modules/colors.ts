@@ -87,7 +87,7 @@ export const NEON: Record<string, RGB> = {
     radioctl: [94, 244, 248],
 }
 
-export type PaletteName = "NETWATCH" | "BLADE" | "KITTY" | "BLOODMOON" | "ARCTIC" | "SYNTHWAVE" | "JOHNNY" | "GHOST" | "NSD"
+export type PaletteName = "NETWATCH" | "BLADE" | "SYNTHWAVE" | "JOHNNY" | "GHOST" | "NSD"
 
 export const PALETTES: Record<string, Partial<Record<string, RGB>>> = {
     NETWATCH: {
@@ -160,93 +160,6 @@ export const PALETTES: Record<string, Partial<Record<string, RGB>>> = {
         notifmail: [187, 56, 160],
         notifbg: [13, 66, 72],
         sysveil: [187, 56, 160],
-    },
-    KITTY: {
-        red: [255, 20, 147], cyan: [255, 105, 190], magenta: [255, 0, 128],
-        green: [255, 130, 200], amber: [255, 75, 170], blue: [255, 95, 185],
-        white: [255, 235, 248], dim: [180, 60, 125], grid: [60, 12, 40],
-        dock: [255, 20, 147], press: [255, 45, 160],
-        netinfo: [255, 20, 147],
-        notifred: [255, 20, 147],
-        notifyel: [255, 75, 170],
-        notifcyn: [255, 105, 190],
-        goldf: [120, 25, 80],
-        goldd: [70, 12, 48],
-        notifgrey: [255, 235, 248],
-        glyphcol: [255, 20, 147],
-        msggrey: [180, 60, 125],
-        dimred: [255, 20, 147],
-        appsred: [255, 20, 147],
-        hudcyan: [255, 105, 190],
-        darkred: [255, 20, 147],
-        notifbadge: [255, 20, 147],
-        aurgreen: [255, 130, 200],
-        aurbrt: [255, 235, 248],
-        aurblack: [60, 12, 40],
-        aurwht: [255, 235, 248],
-        f25: [255, 20, 147],
-        pure: [255, 235, 248],
-        glassacc: [255, 235, 248],
-        overlay: [255, 20, 147],
-        sysveil: [255, 20, 147],
-    },
-    BLOODMOON: {
-        red: [255, 32, 32], cyan: [255, 60, 60], magenta: [255, 40, 60],
-        green: [255, 70, 50], amber: [255, 90, 50], blue: [220, 40, 50],
-        white: [255, 210, 205], dim: [130, 50, 50], grid: [50, 10, 14],
-        dock: [255, 50, 50], press: [255, 20, 20],
-        netinfo: [255, 60, 60],
-        notifred: [255, 32, 32],
-        notifyel: [255, 90, 50],
-        notifcyn: [255, 50, 50],
-        goldf: [76, 27, 15],
-        goldd: [45, 16, 9],
-        notifgrey: [255, 210, 205],
-        glyphcol: [255, 32, 32],
-        msggrey: [130, 50, 50],
-        dimred: [255, 32, 32],
-        appsred: [255, 32, 32],
-        hudcyan: [255, 60, 60],
-        darkred: [255, 32, 32],
-        notifbadge: [255, 60, 60],
-        aurgreen: [255, 70, 50],
-        aurbrt: [255, 210, 205],
-        aurblack: [50, 10, 14],
-        aurwht: [255, 210, 205],
-        f25: [255, 32, 32],
-        pure: [255, 210, 205],
-        glassacc: [255, 210, 205],
-        overlay: [255, 32, 32],
-        sysveil: [255, 32, 32],
-    },
-    ARCTIC: {
-        red: [255, 255, 255], cyan: [210, 245, 255], magenta: [255, 255, 255],
-        green: [225, 250, 255], amber: [255, 255, 255], blue: [200, 235, 255],
-        white: [255, 255, 255], dim: [150, 175, 200], grid: [40, 56, 84],
-        dock: [255, 255, 255], press: [190, 240, 255],
-        netinfo: [255, 255, 255],
-        notifred: [255, 255, 255],
-        notifyel: [255, 255, 255],
-        notifcyn: [255, 255, 255],
-        goldf: [40, 56, 84],
-        goldd: [26, 38, 58],
-        notifgrey: [255, 255, 255],
-        glyphcol: [255, 255, 255],
-        msggrey: [150, 175, 200],
-        dimred: [255, 255, 255],
-        appsred: [255, 255, 255],
-        hudcyan: [255, 255, 255],
-        darkred: [170, 200, 220],
-        notifbadge: [255, 255, 255],
-        aurgreen: [225, 250, 255],
-        aurbrt: [255, 255, 255],
-        aurblack: [40, 56, 84],
-        aurwht: [255, 255, 255],
-        f25: [255, 255, 255],
-        pure: [255, 255, 255],
-        glassacc: [255, 255, 255],
-        overlay: [255, 255, 255],
-        sysveil: [255, 255, 255],
     },
     SYNTHWAVE: {
         red: [255, 45, 150], cyan: [45, 220, 210], magenta: [230, 60, 220],
@@ -481,11 +394,8 @@ const applyDeriveTable = (pinned: Record<string, Partial<Record<string, RGB>>> =
 export const imgTint = { value: null as RGB | null, strength: 0 }
 const IMG_TINT: Record<string, [RGB, number]> = {
     NSD: [[193, 112, 255], 0.65],
-    ARCTIC: [[255, 255, 255], 1],
     BLADE: [[81, 37, 11], 0.62],
-    KITTY: [[255, 20, 147], 0.8],
     JOHNNY: [[255, 208, 60], 0.85],
-    BLOODMOON: [[255, 32, 32], 0.9],
     GHOST: [[0, 255, 120], 0.88],
     SYNTHWAVE: [[255, 60, 220], 0.85],
 }
@@ -550,7 +460,7 @@ const GLASS_ALPHA: Record<string, number> = { GHOST: 0.14, BLADE: 0.85 }
 export const glassAlpha = { value: 1 }
 const updateGlassAlpha = (name: string) => { glassAlpha.value = GLASS_ALPHA[name] ?? 1 }
 
-const GLASS_MODE: Record<string, boolean> = { ARCTIC: true, BLADE: true }
+const GLASS_MODE: Record<string, boolean> = { BLADE: true }
 export const glassMode = { value: false }
 const updateGlassMode = (name: string) => { glassMode.value = GLASS_MODE[name] ?? false }
 
@@ -559,11 +469,8 @@ const MENU_BG_DEF: MenuBg = { bg: [2, 1, 4], bgA: 0.5, fog: [255, 42, 58], fogA:
 const MENU_BG: Record<string, MenuBg> = {
     NSD: { bg: [7, 9, 18], bgA: 0.55, fog: [193, 112, 255], fogA: 0.18 },
     NETWATCH: { bg: [2, 1, 4], bgA: 0.5, fog: [255, 42, 58], fogA: 0.18 },
-    ARCTIC: { bg: [2, 1, 4], bgA: 0.42, fog: [255, 255, 255], fogA: 0.18 },
-    KITTY: { bg: [16, 6, 12], bgA: 0.5, fog: [255, 20, 147], fogA: 0.2 },
     JOHNNY: { bg: [2, 4, 10], bgA: 0.5, fog: [255, 208, 60], fogA: 0.18 },
     BLADE: { bg: [3, 2, 2], bgA: 0.55, fog: [128, 33, 122], fogA: 0.26 },
-    BLOODMOON: { bg: [6, 0, 0], bgA: 0.5, fog: [255, 32, 32], fogA: 0.2 },
     GHOST: { bg: [0, 6, 3], bgA: 0.45, fog: [0, 255, 120], fogA: 0.18 },
     SYNTHWAVE: { bg: [6, 0, 10], bgA: 0.5, fog: [255, 60, 220], fogA: 0.2 },
 }
@@ -577,8 +484,6 @@ type MapAccent = { clock: RGB; city: RGB; forecast: RGB | null }
 const MAP_ACCENT_DEF: MapAccent = { clock: [130, 231, 215], city: [176, 255, 157], forecast: null }
 const MAP_ACCENT: Record<string, MapAccent> = {
     NSD: { clock: [193, 112, 255], city: [0, 235, 116], forecast: [0, 235, 116] },
-    ARCTIC: { clock: [255, 255, 255], city: [130, 220, 255], forecast: null },
-    KITTY: { clock: [255, 20, 147], city: [255, 105, 190], forecast: [255, 20, 147] },
     SYNTHWAVE: { clock: [255, 60, 220], city: [100, 255, 170], forecast: [255, 60, 220] },
     JOHNNY: { clock: [255, 208, 60], city: [176, 255, 157], forecast: null },
     BLADE: { clock: [189, 128, 59], city: [2, 155, 156], forecast: [1, 180, 178] },
@@ -597,8 +502,6 @@ const updateMapAccent = (name: string) => {
 type RGB01 = [number, number, number]
 type HudSoft = { acc: RGB01; label: RGB01 }
 const HUD_SOFT: Record<string, HudSoft> = {
-    ARCTIC: { acc: [1, 1, 1], label: [1, 1, 1] },
-    KITTY: { acc: [1, 0.0784, 0.5765], label: [1, 0.4118, 0.7451] },
     BLADE: { acc: [0.004, 0.707, 0.698], label: [0.325, 0.878, 0.871] },
 }
 export const hudSoft = { acc: [1, 1, 1] as RGB01, label: [1, 1, 1] as RGB01 }
@@ -694,7 +597,7 @@ export const rgbToHex = ([r, g, b]: RGB) =>
     "#" + [r, g, b].map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("")
 
 // each theme has its own Kitty color palette, this maps them
-const KITTY_STYLES: Record<string, string> = { NSD: "nsd", GHOST: "ghost", KITTY: "kitty", SYNTHWAVE: "synthwave", ARCTIC: "arctic", BLOODMOON: "bloodmoon", BLADE: "blade", JOHNNY: "johnny" }
+const KITTY_STYLES: Record<string, string> = { NSD: "nsd", GHOST: "ghost", SYNTHWAVE: "synthwave", BLADE: "blade", JOHNNY: "johnny" }
 
 const themeCommand = (script: string, name: string) =>
     execAsync(["env", `CYBER_DIR=${CYBER_DIR}`, `${CYBER_DIR}/scripts/${script}`, name])
@@ -811,6 +714,10 @@ export const loadUserColors = (): void => {
         if (!ok) { applyPalette("NETWATCH"); writeLoginColors(); syncTheme("NETWATCH").catch(print); return }
         const src = new TextDecoder().decode(bytes)
         const lines = src.split("\n")
+        const declared = /palette\s*=\s*"([A-Z]+)"/.exec(src)?.[1]
+        const unavailable = !!declared && !PALETTES[declared]
+        // A removed preset falls back to the default; keep explicit user overrides.
+        if (unavailable) applyPalette("NETWATCH")
         let saved = ""
         for (const k of Object.keys(OVR)) delete OVR[k]
         for (const line of lines) {
@@ -822,10 +729,11 @@ export const loadUserColors = (): void => {
         for (const line of lines) {
             const m = /users\["(\w+)"\]\s*=\s*\{?\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([0-9.]+))?/.exec(line)
             if (!m || !COLOR_KEYS.includes(m[1])) continue
+            if (unavailable && !OVR[m[1]]) continue
             setColor(m[1], [parseInt(m[2]), parseInt(m[3]), parseInt(m[4])] as RGB, false)
             if (m[5] !== undefined && USER_A[m[1]] !== undefined) USER_A[m[1]] = Math.max(0, Math.min(1, parseFloat(m[5])))
         }
-        const name = saved || getPaletteName()
+        const name = unavailable ? "NETWATCH" : saved || getPaletteName()
         applyDerived(name)
         syncTheme(name).catch(print)
         notifyColorChange()

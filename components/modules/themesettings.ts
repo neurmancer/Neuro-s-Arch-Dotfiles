@@ -1307,8 +1307,8 @@ export const drawKeybinds = (ctx, g, x, y, w) => {
 }
 
 const WALL_THEMES: [string, string][] = [
-    ["NETWATCH", "netwatch"], ["SYNTHWAVE", "synthwave"], ["JOHNNY", "johnny"], ["KITTY", "kitty"],
-    ["BLADE", "blade_runner"], ["BLOODMOON", "bloodmoon"], ["GHOST", "ghost"], ["ARCTIC", "arctic"],
+    ["NETWATCH", "netwatch"], ["SYNTHWAVE", "synthwave"], ["JOHNNY", "johnny"],
+    ["BLADE", "blade_runner"], ["GHOST", "ghost"],
     ["OTHERS", "others"],
 ]
 
@@ -1590,17 +1590,21 @@ const copyToOthers = (src: string, dst: string) => {
 const WALL_FRAME = (): [number, number, number] => USER.sysveil as any
 const WALL_TOKEN = (): [number, number, number] => USER.cyan as any
 
-// discarded the previous kiroshi wheel + modal style for settings, not only it was cpu consuming
-// but to make it more accurate to the game actual menu layout, with top middle tabs and the design
-// ui for buttons, fields etc etc. Created wallpaper selector inspired in the "Skill" sets. I tried
-// as fk to recreate that same PCB layout but i couldnt get it right no way, so i gave up and went to
-// photoshop. For wallpaper selector it loads a "wheel/menu.png" to render the radial menu, and the
-// buttons have their each png asset and their active state aswell, Upon changing theme/colors it just
-// applies the tint filter likewise other images 'round here.
+// Assemble the selector from supported pads so its artwork and hit targets
+// always follow the available wallpaper categories.
 const WHEEL_SRC = 1024
 const wheelSurf = (): any => {
     if ((wheelSurf as any)._s === undefined) {
-        try { (wheelSurf as any)._s = Cairo.ImageSurface.createFromPNG(`${CYBER_DIR}/assets/wheel/menu.png`) }
+        try {
+            const surf = new Cairo.ImageSurface(Cairo.Format.ARGB32, WHEEL_SRC, WHEEL_SRC)
+            const ctx = new Cairo.Context(surf)
+            for (const pad of [...WALL_PADS, WALL_HUB]) {
+                const image = wheelPad(pad.asset, false)
+                if (image) { ctx.setSourceSurface(image, 0, 0); ctx.paint() }
+            }
+            surf.flush()
+            ;(wheelSurf as any)._s = surf
+        }
         catch { (wheelSurf as any)._s = null }
     }
     return (wheelSurf as any)._s
@@ -1624,18 +1628,15 @@ const WALL_PADS: { folder: string; asset: string; box: [number, number, number, 
     { folder: "netwatch", asset: "netwatch", box: [355, 60, 667, 260] },
     { folder: "synthwave", asset: "synth", box: [610, 186, 915, 364] },
     { folder: "johnny", asset: "johnny", box: [686, 400, 977, 576] },
-    { folder: "kitty", asset: "kitty", box: [611, 624, 909, 799] },
     { folder: "blade_runner", asset: "blade", box: [356, 727, 663, 903] },
-    { folder: "bloodmoon", asset: "bloodmoon", box: [96, 616, 400, 783] },
     { folder: "ghost", asset: "ghost", box: [47, 400, 338, 576] },
-    { folder: "arctic", asset: "arctic", box: [107, 185, 413, 364] },
     { folder: "others", asset: "other", box: [97, 792, 389, 958] },
 ]
 const WALL_HUB = { asset: "add_wallpaper", box: [368, 387, 652, 602] as [number, number, number, number] }
 
 const wheelTintCache: Record<string, any> = {}
 // changing the accent color just re-tints every pad live instead of keeping a separate image set per
-// theme. the tint keeps the original shading so lighter themes like arctic come out white instead of
+// theme. the tint keeps the original shading so light accents come out white instead of
 // reddish, and the result is cached per color since re-tinting every frame killed the framerate
 const tintedWheel = (surf: any, name: string, col: [number, number, number] | null): any => {
     if (!surf) return null
@@ -1736,7 +1737,7 @@ export const drawWallRing = (ctx, g, x, y, w) => {
         }
         if (hoverKey === "wupload") hot("hub", WALL_HUB.asset)
     } else {
-        txt(ctx, x + 10, y + 30, "// wheel/menu.png missing", MONO, 11, frame, 0.8)
+        txt(ctx, x + 10, y + 30, "// wallpaper selector unavailable", MONO, 11, frame, 0.8)
     }
 
     for (const p of WALL_PADS) {

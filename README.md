@@ -135,8 +135,20 @@ Open the full cheat-sheet with all keybinds anytime with **`SUPER+SHIFT+H`**.
 
 ### HUD & widgets
 
+The bottom-left **CONTROLS** tab peeks out from the screen edge when idle.
+Hover to reveal the full tab; click it or press **SUPER + ALT + C** to open or
+close volume, brightness, music, recording, Wi-Fi, Bluetooth, and power controls.
+Hover alone never opens the widgets. An opened tray stays open when the pointer
+leaves; after closing it, the tab retracts when the pointer moves away. Sliding
+follows the modal animation setting. The shortcut targets the monitor under the
+pointer and can be changed in Theme Settings > Keybinds. Trays start collapsed
+after a shell restart. Individual utility shortcuts work even while the tray is
+closed; messages remain available through **SUPER + SHIFT + M**. The global
+widget visibility and recording rules also apply to the tray and its tab.
+
 | Keybind | Action |
 | --- | --- |
+| `SUPER + ALT + C` | Toggle controls tray |
 | `SUPER` / `SUPER + Space` | App launcher |
 | `SUPER + SHIFT + Z` | Toggle HUD above / below windows |
 | `SUPER + ALT + H` | Hide / show all desktop widgets together (saved across restarts) |

@@ -13,7 +13,7 @@ with tempfile.TemporaryDirectory() as tmp:
     original = 'font_size 17\nbackground_opacity 0.63\nmap ctrl+x close_window\n'
     target.write_text(original)
     styles = sorted((root / 'assets/kitty/styles').glob('*.toml'))
-    assert len(styles) == 9
+    assert {style.stem for style in styles} == {'cybercore', 'blade', 'synthwave', 'johnny', 'ghost', 'nsd'}
     for style in styles:
         m.kitty(style, target)
         assert target.read_text().startswith(original)
@@ -30,7 +30,7 @@ with tempfile.TemporaryDirectory() as tmp:
     m.kitty(root / 'assets/kitty/styles/nsd.toml', target)
     assert shared.read_text() == original
     assert not target.is_symlink()
-print('All nine palettes, repeated updates, backups, symlink isolation, and preference preservation passed')
+print('All six palettes, repeated updates, backups, symlink isolation, and preference preservation passed')
 `], { encoding: 'utf8' })
 assert.equal(result.status, 0, result.stderr)
 console.log(result.stdout.trim())

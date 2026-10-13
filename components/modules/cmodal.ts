@@ -1691,7 +1691,10 @@ const cregistry: any = {}
 const register = (c) => { cregistry[c.name] = c; return c.win }
 export const registerCModal = (c) => { cregistry[c.name] = c }
 const chgCbs: any[] = []
-export const onModalChange = (cb) => { chgCbs.push(cb) }
+export const onModalChange = (cb) => {
+ chgCbs.push(cb)
+ return () => { const i = chgCbs.indexOf(cb); if (i >= 0) chgCbs.splice(i, 1) }
+}
 const fireChange = () => { for (const cb of chgCbs) cb() }
 
 const AurCtrl = () => {

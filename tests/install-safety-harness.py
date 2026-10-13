@@ -58,6 +58,39 @@ case "$1" in -Qq|-Qg) exit 1;; *) exit 91;; esac''')
         import re
         self.assertFalse(re.search(r'pacman\s+-[A-Za-z]*S[A-Za-z]*y(?![A-Za-z]*u)(?:\s|$)', INSTALL))
 
+    def test_final_summary_without_legacy_terminal_variables(self):
+        start = INSTALL.index('printf "${RED}${B}"',
+                              INSTALL.index('hdr "MESA PACKAGES INSTALLATION"'))
+        # Execute the real final summary and decline logout, replacing only the
+        # interactive input device. No installer or session changes are run.
+        summary = INSTALL[start:].replace('read -r ans </dev/tty', 'read -r ans')
+        for command in ('sudo', 'hyprctl', 'loginctl', 'systemctl', 'qdbus', 'qdbus-qt6'):
+            self.stub(command, 'echo "UNEXPECTED $0 $*" >> "$AUDIT_LOG"; exit 90')
+        for restart in (0, 1):
+            for greeter in (0, 1):
+                with self.subTest(restart=restart, greeter=greeter):
+                    prefix = f'''
+unset GTKEY WAYLAND_DISPLAY DISPLAY
+R=; B=; RED=; GRN=; GREY=; YEL=; CYAN=
+NEED_RESTART={restart}
+dm_active() {{ return {greeter}; }}
+warn() {{ echo "$*"; }}
+line() {{ echo SUMMARY_SEPARATOR; }}
+'''
+                    result = self.run_bash(prefix + '{\n' + summary + '\n} <<< n\n')
+                    self.assertIn('SUPER + T    Kitty terminal', result.stdout)
+                    self.assertIn('⧉ + H', result.stdout)
+                    self.assertIn('Flatline the session yourself when ready', result.stdout)
+                    self.assertTrue(result.stdout.rstrip().endswith('SUMMARY_SEPARATOR'))
+                    if restart:
+                        self.assertIn('A Hyprland restart is required', result.stdout)
+                    else:
+                        self.assertIn('Installation is complete', result.stdout)
+                    prompt = ('Log out now so the theme and greeter come up clean?'
+                              if greeter == 0 else 'Start sddm and log out anyway?')
+                    self.assertIn(prompt, result.stdout)
+                    self.assertFalse(self.log.exists(), 'Summary changed the session')
+
     def login_fixture(self, mode):
         self.env['AUDIT_MODE'] = mode
         (self.work / '.config/hypr').mkdir(parents=True)
