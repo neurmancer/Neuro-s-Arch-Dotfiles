@@ -1,53 +1,19 @@
-import { RUNTIME_DIR } from "../../env.ts"
-
-
-
-
 import { Box, DrawingArea, EventBox, Keymode } from "./widget.ts"
 import Gdk from "gi://Gdk?version=3.0"
 import GLib from "gi://GLib"
 import { interval, execAsync } from "astal"
 import { CYBER_DIR, USER_DIR, scaleOf } from "../../env.ts"
-import { makePlane, tiltText, strokePath, fillQuad, alertChip } from "./proj.ts"
-import { NEON, USER, onColorChange, tintOpaque, mapAccent } from "./colors.ts"
+import { makePlane, tiltText, strokePath, fillQuad } from "./proj.ts"
+import { NEON, USER, onColorChange, mapAccent } from "./colors.ts"
 import { createModal } from "./cmodal.ts"
 import { txt as gtxt, pango as gpango, CYAN as GCYAN, ACC as GACC, HEADER as GHEAD, TITLE as GTITLE, MONO as GMONO, pip, projQuad } from "./glass.ts"
 import { openTimeModal } from "./timeset.ts"
-
-const Cairo = (imports).cairo
-
 import { TITLE, MONO, ICONF } from "./fonts.ts"
-const NETCOL: [number, number, number] = NEON.netinfo
-const MAPACC: [number, number, number] = NEON.mapaccent
-const NETCHIP: [number, number, number] = NEON.netchip
-const NETUP: [number, number, number] = NEON.netup
-const NETDN: [number, number, number] = NEON.netdown
-const W = 320, H = 530
-const MAP_DX = 100
-const minimapBase = makePlane({ w: W, h: H, yaw: 24, pitch: 3, roll: -1, focal: 1300, dist: 1300, pad: 0 })
-const minimap = {
- ...minimapBase,
- project: (u, v) => {
- const [x, y] = minimapBase.project(u, v)
- return [x + MAP_DX, y]
- },
- width: minimapBase.width + MAP_DX,
-}
-const plane = makePlane({ w: W, h: H, yaw: 24, pitch: 2, roll: -2, focal: 4600, dist: 4200, pad: 42 })
 
-
-const CONN_DX = 0, CONN_DY = -60
-const connBase = makePlane({ w: W, h: H, yaw: 34, pitch: -12, roll: 6, focal: 4600, dist: 4200, pad: 42 })
-const connPlane = {
- ...connBase,
- project: (u, v) => { const [x, y] = connBase.project(u, v); return [x + CONN_DX, y + CONN_DY] as [number, number] },
-}
-const ICON_DX = 0, ICON_DY = 0
-const iconBase = makePlane({ w: W, h: H, yaw: 34, pitch: -12, roll: 6, focal: 4600, dist: 4200, pad: 42 })
-const iconPlane = {
- ...iconBase,
- project: (u, v) => { const [x, y] = iconBase.project(u, v); return [x + CONN_DX + ICON_DX, y + CONN_DY + ICON_DY] as [number, number] },
-}
+const W = 320
+const plane = makePlane({ w: W, h: 190, yaw: 24, pitch: 3, roll: -1, focal: 1300, dist: 1300, pad: 16 })
+const WEATHER_COLOR: [number, number, number] = NEON.netinfo
+const WEATHER_ACCENT: [number, number, number] = NEON.mapaccent
 const pad2 = (n) => String(n).padStart(2, "0")
 const WD3 = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
 const ch = (c) => String.fromCharCode(c)
@@ -64,57 +30,12 @@ const wxIcon = (desc) => {
 }
 
 
-let geoCity = "NEW YORK", geoCoords = "40.713°N 74.006°W", geoOK = true
-let geoLat = 40.7128, geoLon = -74.006, mapTile = null, mapVer = 0, mapRequest = 0
-let mapCachePath = ""
 let wxLat = 40.7128, wxLon = -74.006, wxName = "NEW YORK", wxFull = "NEW YORK"
 let wxTemp = "--°", wxDesc = "—", wxFeels = "--°", wxHum = "--", wxWind = "--"
-let netName = "OFFLINE"
-const refreshNet = () => {
-
- execAsync(["sh", "-c", "iwgetid -r 2>/dev/null | sed 's/^/WiFi: /' | grep . || nmcli -t -f TYPE,STATE device 2>/dev/null | awk -F: '$1==\"ethernet\" && $2==\"connected\"{c++; print \"Ethernet \" c; exit}' | grep . || echo OFFLINE"])
-     .then((o) => { const s = (o || "").trim(); netName = s || "OFFLINE"; areas.forEach(a => a?.queue_draw()) })
-     .catch(() => { netName = "OFFLINE" })
-}
-let netUp = "0.0", netDown = "0.0"
-let _prx = -1, _ptx = 0, _pnt = 0
-const readProc = (p) => { try { const [ok, d] = GLib.file_get_contents(p); return ok ? new TextDecoder().decode(d) : "" } catch { return "" } }
-const netIface = () => { for (const l of readProc("/proc/net/route").split("\n").slice(1)) { const p = l.split(/\s+/); if (p[1] === "00000000" && p[0]) return p[0] } return "" }
-const netCounters = (iface) => { const l = readProc("/proc/net/dev").split("\n").find(x => x.trim().startsWith(iface + ":")); if (!l) return [0, 0]; const p = l.split(":")[1].trim().split(/\s+/).map(Number); return [p[0], p[8]] }
-const mbpsFmt = (bps) => { const m = bps * 8 / 1e6; return m >= 100 ? m.toFixed(0) : m.toFixed(1) }
-const refreshNetSpeed = () => {
- const iface = netIface()
- const now = GLib.get_monotonic_time()
- const [rx, tx] = iface ? netCounters(iface) : [0, 0]
- if (_prx >= 0 && _pnt > 0) { const dt = Math.max(1e-6, (now - _pnt) / 1e6); netDown = mbpsFmt(Math.max(0, (rx - _prx) / dt)); netUp = mbpsFmt(Math.max(0, (tx - _ptx) / dt)) }
- _prx = rx; _ptx = tx; _pnt = now
- areas.forEach(a => a?.queue_draw())
-}
 const WMO = { 0: "Clear", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast", 45: "Fog", 48: "Fog", 51: "Drizzle", 53: "Drizzle", 55: "Drizzle", 56: "Freezing drizzle", 57: "Freezing drizzle", 61: "Light rain", 63: "Rain", 65: "Heavy rain", 66: "Freezing rain", 67: "Freezing rain", 71: "Light snow", 73: "Snow", 75: "Heavy snow", 77: "Snow grains", 80: "Rain", 81: "Rain", 82: "Heavy rain", 85: "Snow", 86: "Heavy snow", 95: "Thunderstorm", 96: "Thunderstorm", 99: "Thunderstorm" }
 const forecast: { day: string; hi: string; lo: string; code: number; pop: number; hiN: number; loN: number; wind: number; uv: number; sunrise: string; sunset: string; date: string }[] = []
 let areas: any[] = []
-let sharedPolls: any[] = []
-let paletteGen = 0
-onColorChange(() => { paletteGen++; areas.forEach(a => a?.queue_draw()) })
-
-
-const ro = () => (Math.random() - 0.5) * 0.055
-const mapCacheDir = `${GLib.getenv("XDG_CACHE_HOME") || `${GLib.getenv("HOME") || "/tmp"}/.cache`}/cyberpunk-maps`
-const mapCacheForPoint = () => `${mapCacheDir}/map-${geoLat.toFixed(5)}-${geoLon.toFixed(5)}.png`
-const loadMapCache = (path) => {
- try {
-  const t = Cairo.ImageSurface.createFromPNG(path)
-  if (t) { mapTile = t; mapVer++; return true }
- } catch {}
- return false
-}
-const setMapPoint = (rerandom) => {
- if (rerandom) { geoLat = wxLat + ro(); geoLon = wxLon + ro() }
- if (!mapCachePath) mapCachePath = mapCacheForPoint()
- geoCoords = `${Math.abs(geoLat).toFixed(3)}°${geoLat >= 0 ? "N" : "S"} ${Math.abs(geoLon).toFixed(3)}°${geoLon >= 0 ? "E" : "W"}`
- geoCity = wxFull; geoOK = true
- areas.forEach(a => a?.queue_draw()); fetchMap()
-}
+onColorChange(() => { areas.forEach(a => a?.queue_draw()) })
 
 
 const WX_STORE = `${USER_DIR}/city.json`
@@ -127,7 +48,7 @@ const readWxStore = (): Uint8Array | null => {
 }
 const saveWxLocation = () => {
  try {
-  GLib.file_set_contents(WX_STORE, new TextEncoder().encode(JSON.stringify({ name: wxName, full: wxFull, lat: wxLat, lon: wxLon, mapLat: geoLat, mapLon: geoLon, mapCache: mapCachePath }, null, 2) + "\n"))
+  GLib.file_set_contents(WX_STORE, new TextEncoder().encode(JSON.stringify({ name: wxName, full: wxFull, lat: wxLat, lon: wxLon }, null, 2) + "\n"))
  } catch (e) { print("[cyber] wx save:", e) }
 }
 const loadWxLocation = () => {
@@ -137,49 +58,13 @@ const loadWxLocation = () => {
  const o = JSON.parse(new TextDecoder().decode(data))
  if (typeof o.lat === "number" && typeof o.lon === "number") {
  wxLat = o.lat; wxLon = o.lon; wxName = String(o.name || wxName); wxFull = String(o.full || o.name || wxName)
- if (typeof o.mapLat === "number" && typeof o.mapLon === "number") {
-  geoLat = o.mapLat; geoLon = o.mapLon
-  mapCachePath = typeof o.mapCache === "string" ? o.mapCache : mapCacheForPoint()
-  loadMapCache(mapCachePath)
-  setMapPoint(false)
- } else {
-  mapCachePath = ""
-  setMapPoint(true)
- }
  return
  }
  }
  } catch {}
- setMapPoint(true)
 }
 
 
-// change of minimap get func, since cartoAPI is hitting ratelimits (i thought it was free),
-// changed to OpenStreetMap. changing the location from city.json triggers rendering a new
-// tilemap of a random location. chill, the theme does not track your geolocation,
-// but a random place from the city provided.
-const fetchMap = () => {
- const out = `${RUNTIME_DIR}/cyber-map.png`
- const request = ++mapRequest
- const lat = geoLat, lon = geoLon
- execAsync(["python3", `${CYBER_DIR}/scripts/gen-map.py`, String(lat), String(lon), out])
-     .then(() => {
-	// fix for changing tiles when city.json is updated
-	// also caches that images on system for next boots, instead falling back to default image
-     if (request !== mapRequest) return
-     try {
-      GLib.mkdir_with_parents(mapCacheDir, 0o755)
-      const [ok, data] = GLib.file_get_contents(out)
-      if (ok && mapCachePath) GLib.file_set_contents(mapCachePath, data)
-     } catch (e) { print("[cyber] map cache:", e) }
-     const t = Cairo.ImageSurface.createFromPNG(mapCachePath || out)
-     if (t) { mapTile = t; mapVer++; saveWxLocation(); areas.forEach(a => a?.queue_draw()) }
-     })
-     .catch(() => {
-     if (request !== mapRequest) return
-     try { mapTile = Cairo.ImageSurface.createFromPNG(`${CYBER_DIR}/assets/img/map-grid.png`); if (mapTile) mapVer++; areas.forEach(a => a?.queue_draw()) } catch {}
-     })
-}
 const refreshWeather = async () => {
  try {
  const url = `https://api.open-meteo.com/v1/forecast?latitude=${wxLat}&longitude=${wxLon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,uv_index_max,sunrise,sunset&forecast_days=7&timezone=auto`
@@ -200,165 +85,74 @@ const refreshWeather = async () => {
  }
  } catch (e) { wxDesc = "OFFLINE" }
  areas.forEach(a => a?.queue_draw())
+ fcModal?.requestDraw()
 }
 
 
-const MX0 = 14, MY0 = 50, MX1 = W - 14, MY1 = 318
-const BLV = 10
-
-const NTY1 = MY0 + (MY1 - MY0) * 0.74, NTY0 = MY0 + (MY1 - MY0) * 0.24, NTW = 5, NDD = 8
-const MAP_SHAPE = [
- [MX0, MY0], [MX1, MY0], [MX1, MY1],
- [MX0 + BLV, MY1], [MX0, MY1 - BLV],
- [MX0, NTY1], [MX0 + NTW, NTY1 - NDD], [MX0 + NTW, NTY0 + NDD], [MX0, NTY0],
-]
-
-const BUILDINGS: [number, number, number, number][] = (() => {
- const b: [number, number, number, number][] = []; let s = 91
- const rnd = () => { s = (s * 48271) % 2147483647; return s / 2147483647 }
- for (let gy = MY0 + 12; gy < MY1 - 30; gy += 40)
- for (let gx = MX0 + 12; gx < MX1 - 36; gx += 52) {
- if (rnd() < 0.18) continue
- b.push([gx + rnd() * 10, gy + rnd() * 8, 26 + rnd() * 28, 18 + rnd() * 20])
- }
- return b
-})()
-const clipMap = (ctx) => {
- ctx.newPath(); MAP_SHAPE.map(([u, v]: [number, number]) => minimap.project(u, v)).forEach(([x, y]: [number, number], i: number) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.clip()
+let weatherInitialized = false
+const ensureWeatherData = () => {
+ if (weatherInitialized) return
+ weatherInitialized = true
+ loadWxLocation()
+ interval(1_800_000, () => {
+  if (areas.some(a => a.get_mapped()) || fcModal?.isOpen()) refreshWeather()
+ })
+ interval(60_000, () => { for (const area of areas) if (area.get_mapped()) area.queue_draw() })
 }
 
-const drawMapStatic = (ctx) => {
- const cx = (MX0 + MX1) / 2, cy = (MY0 + MY1) / 2
- ctx.save(); clipMap(ctx)
- if (mapTile) {
-
- const c = MAP_SHAPE.map(([u, v]) => minimap.project(u, v)), xs = c.map(p => p[0]), ys = c.map(p => p[1])
- const mnx = Math.min(...xs), mxx = Math.max(...xs), mny = Math.min(...ys), mxy = Math.max(...ys)
- const tw = mapTile.getWidth(), th = mapTile.getHeight()
- ctx.save(); ctx.translate(mnx, mny); ctx.scale((mxx - mnx) / tw, (mxy - mny) / th)
- ctx.setSourceSurface(mapTile, 0, 0); try { ctx.getSource().setFilter(1) } catch {}; ctx.paint()
- tintOpaque(ctx, tw, th, 0.75); ctx.restore()
- fillQuad(ctx, minimap, MX0, MY0, MX1, MY1, [6, 7, 10], 0.16)
- } else {
- fillQuad(ctx, minimap, MX0, MY0, MX1, MY1, [14, 8, 10], 0.87)
- for (const [bx, by, bw, bh] of BUILDINGS) {
- strokePath(ctx, minimap, [[bx, by], [bx + bw, by], [bx + bw, by + bh], [bx, by + bh]], NEON.white, 0.32, 1, true)
- if (((bx + by) | 0) % 3 === 0) strokePath(ctx, minimap, [[bx + bw * 0.5, by], [bx + bw * 0.5, by + bh]], NEON.white, 0.18, 1)
- }
- }
- ctx.restore()
- strokePath(ctx, minimap, MAP_SHAPE, [81, 104, 111], 0.25, 1.4, true)
- strokePath(ctx, minimap, MAP_SHAPE, [81, 104, 111], 1, 0.9, true)
-
- tiltText(ctx, minimap, MX1 - 8, MY1 - 10, geoCoords, MONO, 8, geoOK ? MAPACC : NEON.red, 0.55, { align: "r" })
-}
-
-
-const drawCompassScan = (ctx) => {
- const px = 150, py = 216
- const legs = [[px - 6, py + 6], [px, py - 7], [px + 6, py + 6]]
- const bar = [[px - 3.3, py], [px, py + 3.5], [px + 3.3, py]]
- strokePath(ctx, minimap, legs, MAPACC, 0.3, 3.5)
- strokePath(ctx, minimap, bar, MAPACC, 0.3, 3.5)
- strokePath(ctx, minimap, legs, MAPACC, 0.95, 1.5)
- strokePath(ctx, minimap, bar, MAPACC, 0.9, 1.3)
-}
 const MON3 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 const ordDay = (d) => { const j = d % 10, k = d % 100; return d + (j === 1 && k !== 11 ? "st" : j === 2 && k !== 12 ? "nd" : j === 3 && k !== 13 ? "rd" : "th") }
 const fmtDate = (now) => `${ordDay(now.getDate())} ${MON3[now.getMonth()]}, ${now.getFullYear()}`
 
-const drawOverlay = (ctx, now) => {
- tiltText(ctx, minimap, MX0 + 8, MY0 + 10, "55S.441.20", MONO, 7, MAPACC, 0.34)
- tiltText(ctx, minimap, MX1, MY0 - 5, (geoCity || "NIGHT CITY").slice(0, 32), TITLE, 9, mapAccent.city, 0.9, { align: "r", bold: true, glow: 0.4 })
-  const tstr = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`
- const tcx = MX0 + 4, tcy = MY0 - 7
- tiltText(ctx, minimap, tcx, tcy, tstr, TITLE, 18.1, mapAccent.clock, 0.92, { bold: true, glow: 0.82,extraRotate: 0.01  })
- const FORECOL = mapAccent.forecast || NETCOL
- tiltText(ctx, minimap, MX0 + 14, MY1 - 14, wxIcon(wxDesc), ICONF, 10, FORECOL, 0.95, { bold: true, glow: 0.3 })
- tiltText(ctx, minimap, MX0 + 30, MY1 - 14, `${wxDesc.toUpperCase()} · ${wxTemp}`, TITLE, 9.5, FORECOL, 0.92, { bold: true, glow: 0.3 })
- tiltText(ctx, minimap, MX0 + 2, MY1 + 16, `FEELS LIKE ${wxFeels} · HUM ${wxHum}% · WIND ${wxWind}`, MONO, 6.6, MAPACC, 0.52, { bold: true })
- tiltText(ctx, minimap, MX1, MY1 + 16, fmtDate(now), MONO, 9.5, FORECOL, 0.9, { bold: true, align: "r", glow: 0.38 })
+const MX0 = 14, MX1 = W - 14, MY1 = 70
+const drawWeather = (ctx, now) => {
+ tiltText(ctx, plane, MX0, 20, `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, TITLE, 18, mapAccent.clock, 0.92, { bold: true })
+ tiltText(ctx, plane, MX1, 20, wxName.slice(0, 24), TITLE, 10, mapAccent.city, 0.9, { align: "r", bold: true })
+ const FORECOL = mapAccent.forecast || WEATHER_COLOR
+ tiltText(ctx, plane, MX0 + 14, MY1 - 14, wxIcon(wxDesc), ICONF, 10, FORECOL, 0.95, { bold: true, glow: 0.3 })
+ tiltText(ctx, plane, MX0 + 30, MY1 - 14, `${wxDesc.toUpperCase()} · ${wxTemp}`, TITLE, 9.5, FORECOL, 0.92, { bold: true, glow: 0.3 })
+ tiltText(ctx, plane, MX0 + 2, MY1 + 16, `FEELS LIKE ${wxFeels} · HUM ${wxHum}% · WIND ${wxWind}`, MONO, 6.6, WEATHER_ACCENT, 0.52, { bold: true })
+ tiltText(ctx, plane, MX1, 36, fmtDate(now), MONO, 9.5, FORECOL, 0.9, { bold: true, align: "r", glow: 0.38 })
  const fy = MY1 + 36
- fillQuad(ctx, minimap, MX0 - 2, fy - 8, MX1 + 2, fy + 70, [0, 0, 0], 0.012)
- strokePath(ctx, minimap, [[MX0 + 2, fy + 5], [MX1 - 2, fy + 5]], FORECOL, 0.16, 5)
- strokePath(ctx, minimap, [[MX0 + 2, fy + 5], [MX1 - 2, fy + 5]], FORECOL, 0.62, 1)
- tiltText(ctx, minimap, MX0, fy, "7-DAY FORECAST", TITLE, 9, FORECOL, 0.85, { bold: true, glow: 0.32 })
- tiltText(ctx, minimap, MX1, fy, "L-CLICK \u25B8 DETAILS \u00B7 R \u25B8 CITY", MONO, 7, MAPACC, 0.38, { align: "r" })
+ fillQuad(ctx, plane, MX0 - 2, fy - 8, MX1 + 2, fy + 70, [0, 0, 0], 0.012)
+ strokePath(ctx, plane, [[MX0 + 2, fy + 5], [MX1 - 2, fy + 5]], FORECOL, 0.16, 5)
+ strokePath(ctx, plane, [[MX0 + 2, fy + 5], [MX1 - 2, fy + 5]], FORECOL, 0.62, 1)
+ tiltText(ctx, plane, MX0, fy, "7-DAY FORECAST", TITLE, 9, FORECOL, 0.85, { bold: true, glow: 0.32 })
+ tiltText(ctx, plane, MX1, fy, "L-CLICK \u25B8 DETAILS \u00B7 R \u25B8 CITY", MONO, 7, WEATHER_ACCENT, 0.38, { align: "r" })
  const span = (MX1 - MX0) / 7
  for (let i = 0; i < 7; i++) {
  const cx = MX0 + i * span + span / 2, d = forecast[i], today = i === 0
- if (today) fillQuad(ctx, minimap, MX0 + i * span + 1, fy + 8, MX0 + (i + 1) * span - 1, fy + 66, FORECOL, 0.1)
- tiltText(ctx, minimap, cx, fy + 20, d ? d.day : "--", TITLE, 9, today ? FORECOL : NEON.white, today ? 0.97 : 0.6, { align: "c", bold: true, glow: today ? 0.3 : 0 })
- tiltText(ctx, minimap, cx, fy + 37, d ? wxIcon(WMO[d.code] || "") : "", ICONF, 13, today ? FORECOL : MAPACC, 0.85, { align: "c" })
- tiltText(ctx, minimap, cx, fy + 51, d ? d.hi : "--", MONO, 10, today ? FORECOL : NEON.white, 0.9, { align: "c", bold: true })
- tiltText(ctx, minimap, cx, fy + 63, d ? d.lo : "--", MONO, 8, MAPACC, 0.5, { align: "c" })
+ if (today) fillQuad(ctx, plane, MX0 + i * span + 1, fy + 8, MX0 + (i + 1) * span - 1, fy + 66, FORECOL, 0.1)
+ tiltText(ctx, plane, cx, fy + 20, d ? d.day : "--", TITLE, 9, today ? FORECOL : NEON.white, today ? 0.97 : 0.6, { align: "c", bold: true, glow: today ? 0.3 : 0 })
+ tiltText(ctx, plane, cx, fy + 37, d ? wxIcon(WMO[d.code] || "") : "", ICONF, 13, today ? FORECOL : WEATHER_ACCENT, 0.85, { align: "c" })
+ tiltText(ctx, plane, cx, fy + 51, d ? d.hi : "--", MONO, 10, today ? FORECOL : NEON.white, 0.9, { align: "c", bold: true })
+ tiltText(ctx, plane, cx, fy + 63, d ? d.lo : "--", MONO, 8, WEATHER_ACCENT, 0.5, { align: "c" })
  }
-
-
- const ny = fy + 121, dx = 72
- const off = !netName || netName === "OFFLINE"
- const stxt = off ? "OFFLINE!" : netName
- tiltText(ctx, connPlane, MX0 - 16 + dx, ny, "NETWORK STATUS", TITLE, 14, NETCOL, 1, { bold: true, glow: 0.22, bloom: 0.45, shadow: 1 })
- alertChip(ctx, iconPlane, MX0 + 6 + dx, ny + 11, NETCHIP, 0.8)
- tiltText(ctx, connPlane, MX0 + 26 + dx, ny + 22, stxt, TITLE, 14, NETCOL, 0.95, { bold: true, glow: off ? 0.22 : 0.1, bloom: 0.45, shadow: 1 })
 }
-const drawNetSpeed = (ctx) => {
- const fy = MY1 + 65, ny = fy + 91, ux = MX0 + 276
- tiltText(ctx, connPlane, ux - 70, ny - 1, "", ICONF, 9, NETUP, 0.95, { bold: true, align: "r" })
- tiltText(ctx, connPlane, ux - 25, ny - 1, `${netUp} Mbps`, MONO, 8.5, NETUP, 0.92, { bold: true, align: "r", glow: 0.3 })
- tiltText(ctx, connPlane, ux - 50, ny + 22, "", ICONF, 9, NETDN, 0.95, { bold: true, align: "r" })
- tiltText(ctx, connPlane, ux - 8, ny + 22, `${netDown} Mbps`, MONO, 8.5, NETDN, 0.92, { bold: true, align: "r", glow: 0.3 })
-}
-let cache = null, cacheKey = ""
 
-export const SidePanel = (mon?: any) => {
+export const WeatherPanel = (mon?: any) => {
+ ensureWeatherData()
  const S = scaleOf(mon)
- ensureWxModal()
- if (!sharedPolls.length) {
-   loadWxLocation(); refreshWeather(); refreshNet(); refreshNetSpeed()
-   sharedPolls = [interval(1_800_000, refreshWeather), interval(15_000, refreshNet), interval(1000, refreshNetSpeed)]
- }
- const area = DrawingArea({}); areas.push(area); area.set_size_request(Math.round(plane.width * S), Math.round(plane.height * S))
- area.connect("destroy", () => {
-   areas = areas.filter(a => a !== area)
-   if (!areas.length) { sharedPolls.forEach(t => t.cancel()); sharedPolls = [] }
- })
- if (!mapTile) try { mapTile = Cairo.ImageSurface.createFromPNG(`${CYBER_DIR}/assets/img/map-grid.png`); mapVer++ } catch {}
- area.connect("draw", (_w, ctx) => {
- ctx.scale(S, S)
- const now = new Date()
-
- const key = `${paletteGen}|${mapVer}|${pad2(now.getHours())}${pad2(now.getMinutes())}|${wxName}|${wxTemp}|${wxDesc}|${wxFeels}|${geoCoords}|${geoCity}|${wxHum}|${wxWind}|${netName}|${forecast.map(f => f.hi + f.lo).join("")}`
- if (!cache || cacheKey !== key) {
- cacheKey = key
- cache = new Cairo.ImageSurface(Cairo.Format.ARGB32, plane.width, plane.height)
- const cx = new Cairo.Context(cache)
- drawMapStatic(cx); drawOverlay(cx, now)
- }
- ctx.setSourceSurface(cache, 0, 0); ctx.paint()
- drawCompassScan(ctx)
- drawNetSpeed(ctx)
- return false
- })
-
-
- const evt = EventBox({ child: Box({ className: "side-panel", children: [area] }) })
- try { evt.add_events(Gdk.EventMask.BUTTON_PRESS_MASK) } catch {}
+ const area = DrawingArea({})
+ areas.push(area)
+ area.set_size_request(Math.round(plane.width * S), Math.round(plane.height * S))
+ area.connect("draw", (_w, ctx) => { ctx.scale(S, S); drawWeather(ctx, new Date()); return false })
+ area.connect("map", () => refreshWeather())
+ area.connect("destroy", () => { areas = areas.filter(a => a !== area) })
+ const evt = EventBox({ child: Box({ className: "weather-panel", children: [area] }) })
+ evt.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
  evt.connect("button-press-event", (_w, e) => {
- let btn = 0
- try { btn = e.get_button?.()[1] ?? 0 } catch {}
- let px = 0, py = 0
- try { const c = e.get_coords?.(); if (c && c.length >= 3) { px = c[1] / S; py = c[2] / S } } catch {}
- const onClock = pip(px, py, projQuad(minimap, MX0 + 2, MY0 - 26, MX0 + 76, MY0 + 4))
- const onWx = pip(px, py, projQuad(minimap, MX0 - 4, MY1 - 28, MX1 + 4, MY1 + 110))
- if (btn === 3 && onClock) { openTimeModal(); return true }
- if (btn === 1 && onWx) { openForecastModal(); return true }
- if (btn === 3) openCityModal()
- return false
+  const btn = e.get_button?.()[1] ?? 0
+  const coords = e.get_coords?.()
+  const px = coords?.[1] / S, py = coords?.[2] / S
+  const onClock = pip(px, py, projQuad(plane, MX0, 0, MX0 + 80, 30))
+  if (btn === 3 && onClock) { openTimeModal(); return true }
+  if (btn === 1) { openForecastModal(); return true }
+  if (btn === 3) { openCityModal(); return true }
+  return false
  })
  return evt
 }
-
 
 let wxModal: any = null
 let wxQuery = "", wxResults: any[] = [], wxHint = "TYPE A CITY ▸", wxScroll = 0
@@ -378,9 +172,10 @@ const wxRunSearch = async () => {
  wxScroll = 0; wxModal?.requestDraw()
 }
 const wxQueueSearch = () => { if (wxSearchTimer !== null) GLib.source_remove(wxSearchTimer); wxSearchTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 340, () => { wxSearchTimer = null; wxRunSearch().catch(print); return false }) }
-const wxPick = (r) => { wxLat = r.lat; wxLon = r.lon; wxName = String(r.name || "").toUpperCase(); wxFull = r.full.toUpperCase(); mapCachePath = ""; setMapPoint(true); saveWxLocation(); refreshWeather(); wxModal.close() }
+const wxPick = (r) => { wxLat = r.lat; wxLon = r.lon; wxName = String(r.name || "").toUpperCase(); wxFull = r.full.toUpperCase(); saveWxLocation(); refreshWeather(); wxModal.close() }
 
 const ensureWxModal = () => {
+ ensureWeatherData()
  if (wxModal) return
  wxModal = createModal({
  name: "weather", tabTitle: "WEATHER UPLINK", W: 384, H: 312, hud: true,
@@ -505,6 +300,7 @@ const fcCurve = (ctx, days, x, y, w, h, rv) => {
 }
 
 const ensureForecastModal = () => {
+ ensureWeatherData()
  if (fcModal) return
  fcModal = createModal({
  name: "forecast", tabTitle: "ATMOSPHERIC UPLINK · 7-DAY", W: 940, H: 480,
@@ -520,8 +316,8 @@ const ensureForecastModal = () => {
  draw: (ctx, g) => {
  const rv = fcReveal(), d = forecast[fcSel]
  const x0 = g.X + 18, y0 = g.Y + GHEAD + 6, lw = 250
- gtxt(ctx, x0, y0 + 12, (geoCity || wxName || "NIGHT CITY").slice(0, 34).toUpperCase(), GTITLE, 11, YEL, 0.95, 1, 0.35)
- gtxt(ctx, x0, y0 + 27, geoCoords, GMONO, 8, ARA, 0.45)
+ gtxt(ctx, x0, y0 + 12, (wxFull || wxName).slice(0, 34).toUpperCase(), GTITLE, 11, YEL, 0.95, 1, 0.35)
+ gtxt(ctx, x0, y0 + 27, `${Math.abs(wxLat).toFixed(3)}°${wxLat >= 0 ? "N" : "S"} ${Math.abs(wxLon).toFixed(3)}°${wxLon >= 0 ? "E" : "W"}`, GMONO, 8, ARA, 0.45)
  g.push({ kind: "city", bx0: x0 - 6, by0: y0 - 2, bx1: x0 + lw, by1: y0 + 32, on: () => {
  const t = Date.now()
  if (t - fcCityTap < 450) { fcCityTap = 0; fcModal.close(); openCityModal() } else fcCityTap = t

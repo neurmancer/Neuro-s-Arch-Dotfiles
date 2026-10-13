@@ -334,20 +334,15 @@ const SECTIONS: [string, ColRow[]][] = [
     ]],
     ["// LAUNCHER", [
         ["launchico", "LAUNCHER ICON", false],
+        ["maptile", "SHARED IMAGE TINT", true],
         ["launchlbl", "LAUNCHER LABEL", false],
     ]],
-    ["// MINIMAP PANE", [
+    ["// WEATHER", [
         ["mapclock", "CLOCK", false],
         ["mapcity", "CITY", false],
-        ["maptile", "MINIMAP TILE TINT", true],
         ["mapaccent", "TEXT ACCENT", false],
         ["mapwx", "WEATHER", false],
-    ]],
-    ["// NETWORK", [
-        ["netinfo", "NETWORK FOREGROUND", false],
-        ["netchip", "NETWORK CHIP", false],
-        ["netdown", "NET DOWNLOAD", false],
-        ["netup", "NET UPLOAD", false],
+        ["netinfo", "FORECAST FOREGROUND", false],
     ]],
     ["// MARKET", [
         ["mktacc", "MARKET ACCENT", false],

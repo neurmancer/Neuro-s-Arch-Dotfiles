@@ -54,10 +54,11 @@
     -> the APPS Tray is shows the tray for active apps along with custom tilted context menus
 
     
-- **Minimap** -> Recreates the Minimap from the HUD exactly the same as in-game, showing a random location from `city.json`  
-  -  Weather widget below minimap: retrieves the weather forecast for the next 7 days from location at `city.json` using Open Meteo API (Right click to change city location, and double click to see the full forecast)
-  -  Network notification: Displays current WiFi/Etherned connected and SSID, or Offline Status along with Upload/Download speed
-  -  Market Feed: Shows an interactive widget that displays values and charts for Stocks, Cryptocoins and Trending news. Double-clicking it opens the ''terminal'' that mimicks V computer where you can access websites and buy cars etc, but for market and news.
+- **Weather / markets tray** -> A lower-right tray containing the compact forecast and market feed.
+  - Hover over the edge strip to reveal its tab; click it or use `SUPER + ALT + W` to open or close the widgets.
+  - Weather shows the saved city's current conditions and seven-day forecast. Click to open the full forecast; right-click to change the city. The clock/date remains with weather; right-click the clock to open time settings.
+  - Markets retain stocks, crypto, news and sparklines. Double-click to open the full market view.
+  - The map and dedicated network-status/speed indicator have been removed. Wi-Fi controls remain in the controls tray.
     
 - **Weapon/Item** -> The bottom-right hud that shows weapon/ammo in-game
   -  Shows App Launcher, with a custom icon gathered from the design concepts of Cyberpunk 2077
@@ -146,9 +147,17 @@ after a shell restart. Individual utility shortcuts work even while the tray is
 closed; messages remain available through **SUPER + SHIFT + M**. The global
 widget visibility and recording rules also apply to the tray and its tab.
 
+The lower-right **WEATHER / MARKETS** tray follows the same peek, hover and click
+behavior, with **SUPER + ALT + W** as its configurable shortcut. Click weather to
+expand its forecast or double-click markets for the full market view. The direct
+**SUPER + SHIFT + W** and **SUPER + SHIFT + G** shortcuts work even before the
+tray has been opened. Weather and market background refreshes pause when both
+their compact widgets and expanded views are hidden.
+
 | Keybind | Action |
 | --- | --- |
 | `SUPER + ALT + C` | Toggle controls tray |
+| `SUPER + ALT + W` | Toggle weather / markets tray |
 | `SUPER` / `SUPER + Space` | App launcher |
 | `SUPER + SHIFT + Z` | Toggle HUD above / below windows |
 | `SUPER + ALT + H` | Hide / show all desktop widgets together (saved across restarts) |

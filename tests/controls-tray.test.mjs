@@ -7,6 +7,7 @@ import vm from 'node:vm'
 test('tray peeks, reveals its tab on hover, and opens widgets only on click or hotkey', () => {
     const monitors = [{ name: 'left' }, { name: 'right' }]
     let active = monitors[0], animated = true
+    const informationWidgets = []
     const docks = [], listeners = new Set(), configListeners = new Set(), timers = new Set()
     const widget = (props) => ({
         children: [], visible: true, signals: {}, child_revealed: false, ...props,
@@ -19,24 +20,28 @@ test('tray peeks, reveals its tab on hover, and opens widgets only on click or h
     const context = vm.createContext({
         Box: widget, Button: widget, EventBox: widget, Revealer: widget, DrawingArea: widget,
         activeMonitor: () => active,
-        Gtk: { Align: { START: 1 }, RevealerTransitionType: { SLIDE_UP: 1 } },
+        Gtk: { Align: { START: 1, END: 2 }, RevealerTransitionType: { SLIDE_UP: 1 } },
         Gdk: { EventMask: { ENTER_NOTIFY_MASK: 1, LEAVE_NOTIFY_MASK: 2 }, NotifyType: { INFERIOR: 2 } },
         timeout: (_ms, callback) => {
             const timer = { cancel: () => timers.delete(timer), fire: () => { timers.delete(timer); callback() } }
             timers.add(timer); return timer
         },
         Toggles: (mon, notifications) => { docks.push({ mon, notifications }); return widget({}) },
-        HorizDock: () => widget({}), scaleOf: () => 1, TITLE: 'Quantico',
+        HorizDock: () => widget({}),
+        WeatherPanel: mon => { informationWidgets.push(["weather", mon]); return widget({}) },
+        MarketsPanel: mon => { informationWidgets.push(["markets", mon]); return widget({}) }, scaleOf: () => 1, TITLE: 'Quantico',
         NEON: { dock: [1, 2, 3], modalbg: [4, 5, 6] },
+        rgbToHex: () => '#010203',
         animOn: () => animated,
         onColorChange: cb => { listeners.add(cb); return () => listeners.delete(cb) },
         onConfigChange: cb => { configListeners.add(cb); return () => configListeners.delete(cb) },
     })
-    const source = readFileSync('components/modules/controls-tray.ts', 'utf8')
-        .replace(/^import .*\n/gm, '').replace(/^export /gm, '')
+    const source = ['util-tray', 'controls-tray', 'information-tray'].map(name =>
+        readFileSync(`components/modules/${name}.ts`, 'utf8')
+            .replace(/^import .*\n/gm, '').replace(/^export /gm, '')).join('\n')
     vm.runInContext(stripTypeScriptTypes(source) +
-        '\nglobalThis.api = { ControlsTray, toggleControlsTray }', context)
-    const { ControlsTray, toggleControlsTray } = context.api
+        '\nglobalThis.api = { ControlsTray, toggleControlsTray, InformationTray, toggleInformationTray }', context)
+    const { ControlsTray, toggleControlsTray, InformationTray, toggleInformationTray } = context.api
     const left = ControlsTray(monitors[0]), right = ControlsTray(monitors[1])
     const [body, tab] = left.child.children
     const enter = detail => left.signals['enter-notify-event'](left, { detail })
@@ -93,6 +98,21 @@ test('tray peeks, reveals its tab on hover, and opens widgets only on click or h
     assert.equal(body.reveal_child, false, 'hotkey affects only the active monitor')
     left.signals.unmap()
     leave(0)
+    const info = InformationTray(monitors[1])
+    const [infoBody, infoTab] = info.child.children
+    assert.equal(infoTab.halign, 2)
+    info.signals['enter-notify-event'](info, { detail: 0 })
+    assert.equal(informationWidgets.length, 0, 'weather and markets also stay lazy on hover')
+    assert.equal(toggleInformationTray(), true)
+    assert.equal(informationWidgets.length, 2)
+    assert.equal(informationWidgets[0][0], 'weather')
+    assert.equal(informationWidgets[1][0], 'markets')
+    assert.equal(body.reveal_child, false, 'information toggle leaves controls alone')
+    assert.equal(toggleInformationTray(), false)
+    assert.equal(infoBody.reveal_child, false)
+    infoBody.children[0].signals.destroy()
+    info.signals.destroy()
+    assert.equal(toggleInformationTray(), false)
     right.signals.destroy()
     left.signals.destroy()
     assert.equal(timers.size, 0)

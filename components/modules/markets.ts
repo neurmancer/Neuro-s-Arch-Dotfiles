@@ -984,17 +984,25 @@ const openNewsArticle = (id: string) => {
     else mkModal?.open?.()
 }
 
+const ensureMarketsData = () => {
+    if (sharedPoll) return
+    loadPins()
+    sharedPoll = interval(60000, () => {
+        if (areas.some(a => a.get_mapped()) || mkModal?.isOpen()) refreshAll()
+    })
+}
+
 export const MarketsPanel = (mon?: any) => {
     const S = scaleOf(mon)
-    if (!sharedPoll) {
-        loadPins()
-        fetchBrowse("stocks").catch(print)
-        fetchBrowse("crypto").catch(print)
-        refreshAll()
-        sharedPoll = interval(60000, refreshAll)
-    }
+    ensureMarketsData()
     const area = DrawingArea({})
     areas.push(area)
+    area.connect("map", () => {
+        refreshAll()
+        if (tab === "news") refreshNews().catch(() => {})
+        else primeBrowse(tab)
+    })
+    area.connect("unmap", () => { if (hoverT) { hoverT.cancel(); hoverT = null } })
     const RX0 = 6, RX1 = 300
     const rowX1 = 268
     const priceX = 82
@@ -1094,7 +1102,6 @@ export const MarketsPanel = (mon?: any) => {
     area.connect("destroy", () => {
         areas = areas.filter(a => a !== area)
         if (hoverT) hoverT.cancel()
-        if (!areas.length && sharedPoll) { sharedPoll.cancel(); sharedPoll = null }
     })
     const kickHover = () => { if (!hoverT) hoverT = interval(40, stepHover) }
     const tabHit = (px: number, py: number) => {
@@ -1612,6 +1619,7 @@ const drawMarketModal = (ctx: any, g: any) => {
 }
 
 const ensureModal = () => {
+    ensureMarketsData()
     if (mkModal) return
     mkModal = createModal({
         name: "markets",

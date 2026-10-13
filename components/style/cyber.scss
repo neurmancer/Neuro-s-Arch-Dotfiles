@@ -16,7 +16,7 @@ window.aug, .aug { background-color: transparent; }
 .aug-wrap { background-color: transparent; }
 
 // The controls tab meets the physical bottom/left edge, without GTK button chrome.
-.controls-tray-wrap, .controls-tray, .controls-tray-tab {
+.controls-tray-wrap, .information-tray-wrap, .util-tray, .util-tray-tab {
     margin: 0;
     padding: 0;
     border: none;

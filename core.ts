@@ -8,12 +8,13 @@ import AstalNotifd from "gi://AstalNotifd"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import Gdk from "gi://Gdk?version=3.0"
-import { COMPONENTS_DIR, CYBER_DIR, USER_DIR, RUNTIME_DIR, SCREEN_WIDTH, SCREEN_HEIGHT, scaleOf } from "./env.ts"
+import { COMPONENTS_DIR, CYBER_DIR, USER_DIR, RUNTIME_DIR, SCREEN_WIDTH, SCREEN_HEIGHT } from "./env.ts"
 import { loadUserColors, PALETTES, getActivePalette } from "./components/modules/colors.ts"
 import { applyColors } from "./components/modules/themesettings.ts"
 import { applyWmRules, applyWmFromTheme } from "./components/modules/wmconfig.ts"
-import { SidePanel, openCityModal, openForecastModal } from "./components/modules/sidepanel.ts"
-import { MarketsPanel, openMarketsModal } from "./components/modules/markets.ts"
+import { openCityModal, openForecastModal } from "./components/modules/weather.ts"
+import { openMarketsModal } from "./components/modules/markets.ts"
+import { InformationTray, toggleInformationTray } from "./components/modules/information-tray.ts"
 import { openTimeModal } from "./components/modules/timeset.ts"
 import { ControlsTray, toggleControlsTray } from "./components/modules/controls-tray.ts"
 import { OsdWindow } from "./components/modules/osd.ts"
@@ -57,21 +58,8 @@ const toggleWidgets = () => {
  catch (e) { print("[widgets] could not save visibility:", e) }
 }
 
-const WRAP_MARGINS: Record<string, [number, number, number, number]> = {
- sidepanel: [26, 28, 0, 0],
-}
 const surface = (mon, name, anchor, child, extra = {}) => {
- const S = scaleOf(mon)
  const wrap = Box({ className: `aug-wrap ${name}-wrap`, child })
- const m = WRAP_MARGINS[name]
- if (m) {
- try {
- wrap.set_margin_top(Math.round(m[0] * S))
- wrap.set_margin_right(Math.round(m[1] * S))
- wrap.set_margin_bottom(Math.round(m[2] * S))
- wrap.set_margin_left(Math.round(m[3] * S))
- } catch {}
- }
  const w = Window({
  name,
  className: `aug ${name}`,
@@ -249,9 +237,9 @@ const queueMonitorSync = () => {
 }
 const createMonitorHud = (mon) => {
  const first = hudWins.length
- const S = scaleOf(mon)
- { const sw = surface(mon, "sidepanel", Anchor.TOP | Anchor.RIGHT, SidePanel(mon)); (sw as any)._rectHit = true }
- { const mw = surface(mon, "markets", Anchor.TOP | Anchor.RIGHT, MarketsPanel(mon), { margin_top: Math.round(560 * S) }); (mw as any)._rectHit = true }
+ surface(mon, "information-tray", Anchor.BOTTOM | Anchor.RIGHT, InformationTray(mon), {
+   margin_top: 0, margin_right: 0, margin_bottom: 0, margin_left: 0,
+ })
  surface(mon, "controls-tray", Anchor.BOTTOM | Anchor.LEFT, ControlsTray(mon), {
    margin_top: 0, margin_right: 0, margin_bottom: 0, margin_left: 0,
  })
@@ -380,6 +368,9 @@ App.start({
  reply("ok")
  } else if (request === "controls-tray") {
  try { reply(toggleControlsTray() ? "shown" : "hidden") }
+ catch (e) { print(e); reply("err") }
+ } else if (request === "information-tray") {
+ try { reply(toggleInformationTray() ? "shown" : "hidden") }
  catch (e) { print(e); reply("err") }
  } else if (request === "widgets-visible") {
  reply(widgetsVisible ? "shown" : "hidden")
