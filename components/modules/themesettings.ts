@@ -11,7 +11,7 @@ import { closeAllModals } from "./cmodal.ts"
 import { TITLE, MONO, CYAN, ACC, HEADER, txt, drawGlass, Cairo, ch } from "./glass.ts"
 import { ICONF } from "./fonts.ts"
 import { drawBtn, drawToggle, drawSlider, sectionHeader, drawKeyCap, btnPath } from "./cmodal.ts"
-import { cfgBool, cfgStr, toggleCfg, resetCfg, adoptSound, clearSound } from "./config.ts"
+import { cfgBool, cfgStr, setCfg, toggleCfg, resetCfg, adoptSound, clearSound } from "./config.ts"
 import {
     wmBool, wmNum, wmStr, setWm, toggleWm, resetWm, wmCornersIs,
     CORNER_OPTS, CORNER_LABEL, OPACITY_MODES, OPACITY_MODE_LABEL, type WmVal,
@@ -2298,7 +2298,7 @@ export const drawWm = (ctx, g, x, y, w) => {
     }
 }
 
-type CfgKind = "tog" | "snd" | "car"
+type CfgKind = "tog" | "snd" | "car" | "glow"
 type CfgRow = { t: CfgKind; k: string; label: string; dep?: string; grp?: string; master?: boolean }
 
 const CFG_SECTIONS: [string, CfgRow[]][] = [
@@ -2310,8 +2310,12 @@ const CFG_SECTIONS: [string, CfgRow[]][] = [
         { t: "tog", k: "animNotif", label: "NOTIFICATION ANIMATIONS" },
         { t: "tog", k: "animMusic", label: "MUSIC PLAYER ANIMATIONS" },
         { t: "tog", k: "animWheel", label: "QUICKHACK WHEEL ANIMATIONS" },
+        { t: "tog", k: "animInteraction", label: "SECONDARY-COLOR TAKEOVER" },
     ]],
 
+    ["// ::interaction effects", [
+        { t: "glow", k: "interactionGlow", label: "EDGE GLOW" },
+    ]],
     ["// ::sound", [
         { t: "tog", k: "snd", label: "THEME SOUNDS & NOTIFICATIONS", master: true },
 
@@ -2332,7 +2336,7 @@ const CFG_SECTIONS: [string, CfgRow[]][] = [
 ]
 
 const CFG_DEP: Record<string, string> = {
-    animWorkspace: "anim", animGlitch: "anim", animModal: "anim", animNotif: "anim", animMusic: "anim", animWheel: "anim",
+    animWorkspace: "anim", animGlitch: "anim", animModal: "anim", animNotif: "anim", animMusic: "anim", animWheel: "anim", animInteraction: "anim",
     sndNotif: "snd", sndNotifFile: "sndNotif",
     sndWheel: "snd", sndWheelStart: "sndWheel", sndWheelActive: "sndWheel", sndWheelEnd: "sndWheel",
     sndOverlay: "snd", sndOverlayFile: "sndOverlay",
@@ -2404,6 +2408,16 @@ const drawCfgRow = (ctx, g, x, ry, w, r: CfgRow, hit: boolean) => {
 
     if (r.t === "tog") {
         drawToggle(ctx, push, x + w - 58, ry + 4, cfgBool(r.k), () => { toggleCfg(r.k); ctrl.requestDraw() }, dis, g.col, 1.35, USER.cyan as any)
+        return
+    }
+
+    if (r.t === "glow") {
+        const levels = ["off", "low", "normal", "strong"]
+        const current = cfgStr(r.k)
+        levels.forEach((level, i) => {
+            drawBtn(ctx, push, x + w - 300 + i * 76, ry + 4, 70, 24, level.toUpperCase(),
+                () => { setCfg(r.k, level); ctrl.requestDraw() }, current === level, g.col, "", 10)
+        })
         return
     }
 

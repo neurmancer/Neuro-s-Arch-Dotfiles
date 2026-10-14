@@ -5,6 +5,7 @@ import Gdk from "gi://Gdk?version=3.0"
 import Pango from "gi://Pango?version=1.0"
 import PangoCairo from "gi://PangoCairo?version=1.0"
 import { USER, USER_A, isOvr, glassAlpha, neonBtn, onColorChange } from "./colors.ts"
+import { drawAttentionEdge } from "./attention.ts"
 import { makePlane, Plane } from "./proj.ts"
 
 export const Cairo: any = (imports as any).cairo
@@ -49,7 +50,7 @@ export const panelPath = (ctx, x, y, w, h) => {
     return pts
 }
 
-export const drawGlass = (ctx, x, y, w, h, col: [number, number, number] = CYAN, a = 1) => {
+export const drawGlass = (ctx, x, y, w, h, col: [number, number, number] = CYAN, a = 1, attention?: { value: number; focused: boolean }) => {
     const [r, g, b] = col
     const ga = glassAlpha.value * USER_A.modalbg
     panelPath(ctx, x, y, w, h)
@@ -71,7 +72,9 @@ export const drawGlass = (ctx, x, y, w, h, col: [number, number, number] = CYAN,
     ctx.setOperator(12); ctx.setSource(gs); ctx.rectangle(x, y, w, h); ctx.fill(); ctx.setOperator(2)
     ctx.restore()
     const lr = r + (1 - r) * 0.45, lg = g + (1 - g) * 0.45, lb = b + (1 - b) * 0.45
-    panelPath(ctx, x, y, w, h); ctx.setSourceRGBA(lr, lg, lb, 0.92); ctx.setLineWidth(0.9); ctx.stroke()
+    const edge = panelPath(ctx, x, y, w, h)
+    if (attention) { ctx.newPath(); drawAttentionEdge(ctx, edge, attention.value, attention.focused, 1.3) }
+    else { ctx.setSourceRGBA(lr, lg, lb, 0.92); ctx.setLineWidth(0.9); ctx.stroke() }
 }
 
 

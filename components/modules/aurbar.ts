@@ -1,77 +1,31 @@
-
-
-
 import { Window, DrawingArea, activeMonitor } from "./widget.ts"
 import { Anchor, Layer, Exclusivity } from "./widget.ts"
 import { interval, timeout, execAsync } from "astal"
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import { CYBER_DIR, USER_DIR, SCALE, winScale } from "../../env.ts"
-import { TITLE, RAJDHANI, RAJDHANI_MED } from "./fonts.ts"
-import { makePlane, tiltText, strokePath } from "./proj.ts"
+import { TITLE, MONO } from "./fonts.ts"
 import { passthrough } from "./anim.ts"
-import { NEON, USER_A, onColorChange, glassAlpha, glassMode, tintSurface, tintSurfaceFlat, imgTint, circleTint, neonBtn, aurTitleTint, isOvr } from "./colors.ts"
-import { animOn } from "./config.ts"
+import { NEON, onColorChange, isOvr } from "./colors.ts"
+import { animOn, onConfigChange } from "./config.ts"
+import { readUserLua, readThemeActions, resolveCombo } from "./userbinds.ts"
 
-const Cairo = (imports as any).cairo
-
-
-const GREEN: [number, number, number] = NEON.aurgreen
-const GRBRT: [number, number, number] = NEON.aurbrt
-const BLACK: [number, number, number] = NEON.aurbg
-const CYAN: [number, number, number] = NEON.notifcyn
-const RED: [number, number, number] = NEON.notifred
-const WHT: [number, number, number] = NEON.aurfg
-const LBL: [number, number, number] = NEON.aurlbl
-const AURLN: [number, number, number] = NEON.aurline
-const CAPBG: [number, number, number] = NEON.aurbg
-const ac = (c: [number, number, number]): [number, number, number] => neonBtn.value ? NEON.press : c
-
-const TFONT = RAJDHANI, GFONT = RAJDHANI_MED
-
-
-const DC = 46, BH = 38, BW = 300, CHAMF = 8
-const CIRCX_F = 31, CIRCX_S = 49
-const LINEX = 66, BARX = 66, ROWY = 27
-const CW = BARX + BW + 14, CH = 124
-const GIGSY = ROWY + BH / 2 + 22, TIPY = GIGSY + 30
-
-const D2R = Math.PI / 180
-const BADGE_ROT = 0 * D2R
-const GIGS_ROT = 0 * D2R
-
-
-const plane = makePlane({ w: CW, h: CH, yaw: -19, pitch: 10, roll: 1, focal: 1080, dist: 1080, pad: 26 })
-
-
-const IMG: any = {}
-const png = (n: string) => { try { if (IMG[n] === undefined) IMG[n] = Cairo.ImageSurface.createFromPNG(`${CYBER_DIR}/assets/icons/${n}`) } catch { IMG[n] = null } return IMG[n] }
-
-
-let area: any = null, win: any = null, loop: any = null
-let dismissed = false, count = 0
-let lastList: string[] = []
-let phase = "hidden", phaseStart = 0
-let recheck: any = null, tRecheck: any = null
-let mode = "update", autoT: any = null
-let cTitle = "AUR UPDATE AVAILABLE!", cLabel = "NEW GIGS AVAILABLE:", cValue = "", cShowU = true
-let cUKey = "U", cULbl = "UPGRADE"
+const CARD_W = 396, CARD_H = 146, INSET = 8
+let area: any = null, win: any = null
+let tick = 0, opacity = 0
+let phase = "hidden", mode = "update"
+let dismissed = false, count = 0, lastList: string[] = []
 let tVer = "", tLocal = "", tBody: string[] = [], tDismissed = false, aurPending = false
-
-
-const clamp = (n: number) => Math.max(0, Math.min(1, n))
-const easeOut = (t: number) => 1 - (1 - clamp(t)) * (1 - clamp(t))
-const easeIn = (t: number) => clamp(t) * clamp(t)
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t
-const rgba = (ctx: any, c: number[], a: number) => ctx.setSourceRGBA(c[0] / 255, c[1] / 255, c[2] / 255, a)
-const blink2 = (q: number) => { if (q >= 0.75) return 1; const c = (q / 0.75) * 2; return (c % 1) < 0.5 ? 1 : 0.14 }
-
+let installedTitle = "", installedInfo = ""
+let autoT: any = null, nextT: any = null
+let reviewKey = "", dismissKey = ""
 
 export const getAurUpdates = () =>
     execAsync(["sh", "-c", `'${CYBER_DIR}/scripts/aur' check`]).then((out: string) => {
         const lines = out.split("\n")
         count = parseInt((lines[0] || "0").trim()) || 0
         lastList = lines.slice(1).map((s) => s.trim()).filter(Boolean)
+        if (mode === "update") area?.queue_draw()
         return { count, list: lastList }
     }).catch(() => ({ count: 0, list: [] as string[] }))
 
@@ -98,75 +52,79 @@ export const cachedThemeUpdate = () => ({ avail: !!tVer, local: tLocal, remote: 
 export const startThemeUpdate = () => execAsync(["sh", "-c", `'${UPDATER}' --spawn`]).catch(() => { })
 
 
-const DUR: any = { circle: 820, line: 720, bar: 460, outbar: 340, outline: 240, outcircle: 300 }
-const NEXT: any = { circle: "line", line: "bar", bar: "shown", outbar: "outline", outline: "outcircle", outcircle: "hidden" }
-
-
-const kick = () => {
-    if (loop) return
-    loop = interval(16, () => {
-        const p = animOn("animNotif") ? clamp((Date.now() - phaseStart) / (DUR[phase] || 1)) : 1
-        if (p >= 1 && NEXT[phase]) {
-            phase = NEXT[phase]; phaseStart = Date.now()
-            if (phase === "shown" || phase === "hidden") {
-                if (phase === "hidden") {
-                    if (win) win.visible = false
-                    if (mode === "theme" && aurPending) { aurPending = false; timeout(2000, showAurBar) }
-                    else if (mode === "installed" && !tDismissed && tVer) { aurPending = !dismissed && count > 0; timeout(500, showThemeBar) }
-                    else if (mode === "installed" && !dismissed && count > 0) timeout(500, showAurBar)
-                }
-                area?.queue_draw(); loop.cancel(); loop = null; return
-            }
-        }
+// The card uses fixed geometry, with one short frame-clock transition and no
+// animation work once shown. It remains click-through like the other notices.
+const queueNext = (delay: number, show: () => void) => {
+    if (nextT) nextT.cancel()
+    nextT = timeout(delay, () => { nextT = null; show() })
+}
+const finishHidden = () => {
+    phase = "hidden"
+    if (win) win.visible = false
+    if (mode === "theme" && aurPending) { aurPending = false; queueNext(2000, showAurBar) }
+    else if (mode === "installed" && !tDismissed && tVer) {
+        aurPending = !dismissed && count > 0; queueNext(500, showThemeBar)
+    } else if (mode === "installed" && !dismissed && count > 0) queueNext(500, showAurBar)
+}
+const stopTick = () => {
+    if (tick) { area?.remove_tick_callback(tick); tick = 0 }
+}
+const transition = (show: boolean) => {
+    stopTick()
+    const target = show ? 1 : 0, from = opacity
+    phase = show ? "entering" : "exiting"
+    const finish = () => {
+        opacity = target
+        if (show) phase = "shown"
+        else finishHidden()
         area?.queue_draw()
+    }
+    if (!area || !animOn("animNotif") || from === target) { finish(); return }
+    const start = GLib.get_monotonic_time()
+    const duration = (show ? 180_000 : 140_000) * Math.abs(target - from)
+    tick = area.add_tick_callback((_widget, clock) => {
+        const progress = animOn("animNotif") ? Math.min(1, Math.max(0, (clock.get_frame_time() - start) / duration)) : 1
+        opacity = from + (target - from) * (1 - (1 - progress) ** 3)
+        area.queue_draw()
+        if (progress < 1) return true
+        tick = 0; finish(); return false
     })
+    area.queue_draw()
 }
-
-
-const startOut = () => {
-    if (phase === "hidden") return
-    phase = phase === "circle" ? "outcircle" : phase === "line" ? "outline" : "outbar"
-    phaseStart = Date.now(); kick()
+const startOut = () => { if (phase !== "hidden") transition(false) }
+const shortcut = (id: string, fallback: string, user: ReturnType<typeof readUserLua>) => {
+    const action = readThemeActions().find(action => action.id === id)
+    return action ? resolveCombo(action, user.rebinds, user.themeMod || "SUPER + SHIFT").toUpperCase() : fallback
 }
-
-
-const placeWin = () => {
-    if (!win) return
+const showCard = () => {
+    if (nextT) { nextT.cancel(); nextT = null }
     try {
-        ;(win as any).gdkmonitor = activeMonitor()
-        const S = winScale(win)
-        area.set_size_request(Math.round(plane.width * S), Math.round(plane.height * S))
-        win.set_margin_left?.(Math.round(14 * S))
+        win.gdkmonitor = activeMonitor()
+        const scale = winScale(win)
+        area.set_size_request(Math.round((CARD_W + INSET * 2) * scale), Math.round((CARD_H + INSET * 2) * scale))
+        win.set_margin_left?.(Math.round(14 * scale))
     } catch {}
+    const user = readUserLua()
+    reviewKey = shortcut(mode === "theme" ? "hud.update" : "hud.aur", mode === "theme" ? "SUPER + SHIFT + Q" : "SUPER + SHIFT + U", user)
+    dismissKey = shortcut("hud.aurdis", "SUPER + SHIFT + J", user)
+    win.visible = true
+    transition(true)
 }
-
 export const showAurBar = () => {
-    if (dismissed || count <= 0 || phase !== "hidden") return
-    mode = "update"; cTitle = "AUR UPDATE AVAILABLE!"; cLabel = "NEW GIGS AVAILABLE:"; cValue = `${count}`; cShowU = true
-    cUKey = "U"; cULbl = "UPGRADE"
-    placeWin()
-    if (win) win.visible = true
-    phase = "circle"; phaseStart = Date.now(); kick()
+    if (!win || dismissed || count <= 0 || phase !== "hidden") return
+    mode = "update"; showCard()
 }
-
 export const showThemeBar = () => {
-    if (tDismissed || !tVer || phase !== "hidden") return
-    mode = "theme"; cTitle = `NEW VERSION V${tVer} AVAILABLE`; cLabel = "UPDATE CYBERARCH NOW?"; cValue = ""; cShowU = true
-    cUKey = "Q"; cULbl = "UPDATE NOW"
-    placeWin()
-    if (win) win.visible = true
-    phase = "circle"; phaseStart = Date.now(); kick()
+    if (!win || tDismissed || !tVer || phase !== "hidden") return
+    mode = "theme"; showCard()
 }
-
 export const showInstalled = (title: string, info: string) => {
-    mode = "installed"; cTitle = title; cLabel = info; cValue = ""; cShowU = false
-    if (autoT) { autoT.cancel(); autoT = null }
-    placeWin()
-    if (win) win.visible = true
-    phase = "circle"; phaseStart = Date.now(); kick()
+    if (!win) return
+    mode = "installed"; installedTitle = title; installedInfo = info
+    if (autoT) autoT.cancel()
+    showCard()
     autoT = timeout(120000, () => { autoT = null; startOut() })
 }
-
 export const dismissAurBar = () => {
     if (phase === "hidden") return
     if (autoT) { autoT.cancel(); autoT = null }
@@ -174,143 +132,53 @@ export const dismissAurBar = () => {
     if (mode === "theme") tDismissed = true
     startOut()
 }
-
 export const dismissThemeBar = () => {
-    if (mode !== "theme" || phase === "hidden") return
-    if (autoT) { autoT.cancel(); autoT = null }
-    tDismissed = true
-    startOut()
+    if (mode === "theme" && phase !== "hidden") dismissAurBar()
 }
-
-
-const projPath = (ctx: any, pts: [number, number][]) => {
-    ctx.newPath()
-    pts.forEach(([u, v], i) => { const [x, y] = plane.project(u, v); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y) })
-    ctx.closePath()
-}
-const pfill = (ctx: any, pts: [number, number][], c: number[], a: number) => { projPath(ctx, pts); rgba(ctx, c, a); ctx.fill() }
-const uwidth = (ctx: any, font: string, size: number, text: string) => { ctx.selectFontFace(font, 0, 0); ctx.setFontSize(size); return ctx.textExtents(text).width }
-
-
-const pimg = (ctx: any, surf: any, cu: number, cv: number, boxW: number, boxH: number, a: number, extraRot = 0, flat = false, colorOverride: [number, number, number] | null = null) => {
-    if (!surf || a <= 0.01) return
-    const pw = surf.getWidth(), ph = surf.getHeight()
-    const fit = Math.min(boxW / pw, boxH / ph), w = pw * fit, h = ph * fit
-    const [sx, sy] = plane.project(cu, cv), sc = plane.scaleAt(cu, cv), ang = plane.angleAt(cu, cv)
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(ang + extraRot); ctx.scale(sc, sc); ctx.translate(-w / 2, -h / 2); ctx.scale(fit, fit)
-    if (imgTint.value || colorOverride) {
-        if (flat) tintSurfaceFlat(ctx, surf, pw, ph, a, colorOverride)
-        else tintSurface(ctx, surf, pw, ph, a, colorOverride)
-    } else {
-        ctx.setSourceSurface(surf, 0, 0); ctx.paintWithAlpha(a)
-    }
-    ctx.restore()
-}
-
-
-const ptip = (ctx: any, u: number, by: number, key: string, label: string, a: number) => {
-    const s = 20, cv = by - 14
-    pfill(ctx, [[u, cv], [u + s, cv], [u + s, cv + s], [u, cv + s]], CAPBG, 0.55 * a)
-    strokePath(ctx, plane, [[u, cv], [u + s, cv], [u + s, cv + s], [u, cv + s]], ac(LBL), 0.95 * a, 1, true)
-    tiltText(ctx, plane, u + s / 2, by, key, TITLE, 12, WHT, a, { align: "c" } as any)
-    tiltText(ctx, plane, u + s + 6, by, label, TITLE, 11, ac(LBL), a, { align: "l" } as any)
-    return s + 6 + uwidth(ctx, TITLE, 11, label)
-}
-
-
-
-const visuals = () => {
-    const p = (phase === "shown" || phase === "hidden") ? 1 : clamp((Date.now() - phaseStart) / (DUR[phase] || 1))
-    const V: any = { circleA: 0, circleX: CIRCX_F, lineA: 0, lineH: 0, barW: 0, textA: 0, badgeA: 0, metaA: 0 }
-    switch (phase) {
-        case "circle":
-            V.circleA = p < 0.22 ? p / 0.22 : blink2((p - 0.22) / 0.78); V.circleX = CIRCX_S; break
-        case "line":
-            V.circleA = 1; V.circleX = lerp(CIRCX_S, CIRCX_F, easeOut(Math.min(1, p / 0.55)))
-            V.lineH = Math.min(1, p / 0.4); V.lineA = p < 0.4 ? p / 0.4 : blink2((p - 0.4) / 0.6); break
-        case "bar":
-            V.circleA = 1; V.lineA = 1; V.lineH = 1; V.barW = easeOut(p)
-            V.textA = clamp((p - 0.25) / 0.5); V.badgeA = clamp((p - 0.55) / 0.4); V.metaA = clamp((p - 0.6) / 0.4); break
-        case "shown":
-            V.circleA = 1; V.lineA = 1; V.lineH = 1; V.barW = 1; V.textA = 1; V.badgeA = 1; V.metaA = 1; break
-        case "outbar":
-            V.circleA = 1; V.lineA = 1; V.lineH = 1; V.barW = 1 - easeIn(p)
-            V.metaA = 1 - clamp(p / 0.4); V.textA = 1 - clamp(p / 0.5); V.badgeA = 1 - clamp(p / 0.4); break
-        case "outline":
-            V.circleA = 1; V.lineH = 1 - easeIn(p); V.lineA = 1 - p; break
-        case "outcircle":
-            V.circleX = lerp(CIRCX_F, CIRCX_S, easeIn(p)); V.circleA = 1 - easeIn(p); break
-    }
-    return V
-}
-
 
 const draw = (ctx: any) => {
     ctx.setOperator(0); ctx.paint(); ctx.setOperator(2)
-    const V = visuals()
-    if (V.circleA <= 0.003 && V.barW <= 0.003 && V.lineA <= 0.003) return
-
-    pimg(ctx, png("circle.png"), V.circleX, ROWY + 2, DC, DC, V.circleA, 0, false, circleTint.value)
-
-
-    if (V.lineA > 0.01 && V.lineH > 0.01) {
-        const lh = BH * V.lineH, y0 = ROWY - lh / 2, y1 = ROWY + lh / 2
-        ctx.setOperator(12); pfill(ctx, [[LINEX - 2, y0], [LINEX + 4, y0], [LINEX + 4, y1], [LINEX - 2, y1]], GRBRT, 0.5 * V.lineA); ctx.setOperator(2)
-        pfill(ctx, [[LINEX, y0], [LINEX + 3, y0], [LINEX + 3, y1], [LINEX, y1]], GRBRT, V.lineA)
+    if (phase === "hidden" || opacity <= 0) return
+    ctx.save(); ctx.translate(INSET - (1 - opacity) * 6, INSET)
+    const ink = (color: number[], alpha = 1) => ctx.setSourceRGBA(...color.map(v => v / 255), alpha * opacity)
+    const path = () => {
+        ctx.moveTo(0.5, 0.5); ctx.lineTo(CARD_W - 12, 0.5); ctx.lineTo(CARD_W - 0.5, 12)
+        ctx.lineTo(CARD_W - 0.5, CARD_H - 12); ctx.lineTo(CARD_W - 12, CARD_H - 0.5)
+        ctx.lineTo(0.5, CARD_H - 0.5); ctx.closePath()
     }
-
-
-    if (V.barW > 0.005) {
-        const bw = BW * V.barW, y0 = ROWY - BH / 2, y1 = ROWY + BH / 2
-        const bvx = Math.min(18, bw), bvy = 13
-        const barPts: [number, number][] = [[BARX, y0], [BARX + bw, y0], [BARX + bw, y1 - bvy], [BARX + bw - bvx, y1], [BARX, y1]]
-        if (glassMode.value) {
-            pfill(ctx, barPts, BLACK, 0.55 * clamp(V.barW * 4) * glassAlpha.value * USER_A.aurbg)
-            ctx.setOperator(12); strokePath(ctx, plane, barPts, GRBRT, 0.12, 2, true); ctx.setOperator(2)
-            strokePath(ctx, plane, barPts, ac(AURLN), 0.9 * clamp(V.barW * 4), 1.4, true)
-        } else {
-            pfill(ctx, barPts, GREEN, 0.92 * clamp(V.barW * 4))
+    path(); ink(NEON.aurbg, 0.97); ctx.fill()
+    path(); ink(NEON.aurline, 0.6); ctx.setLineWidth(1); ctx.stroke()
+    ink(NEON.aurline, 0.95); ctx.rectangle(0, 0, 56, 3); ctx.fill()
+    ink(NEON.aurline, 0.45); ctx.rectangle(0, 17, 3, 57); ctx.fill()
+    const text = (label: string, x: number, y: number, size: number, color: number[], alpha = 1, maxWidth = CARD_W - 36) => {
+        ctx.selectFontFace(size >= 14 ? TITLE : MONO, 0, size >= 14 ? 1 : 0)
+        ctx.setFontSize(size)
+        let shown = label.replace(/\s+/g, " ").trim()
+        if (ctx.textExtents(shown).width > maxWidth) {
+            while (shown && ctx.textExtents(shown + "…").width > maxWidth) shown = shown.slice(0, -1)
+            shown += "…"
         }
-
-
-        ctx.save(); projPath(ctx, [[BARX, y0 - 7], [BARX + bw, y0 - 7], [BARX + bw, y1 + 7], [BARX, y1 + 7]]); ctx.clip()
-        const tcx = BARX + 18
-        pfill(ctx, [[tcx, ROWY - 7], [tcx + 8, ROWY + 5], [tcx - 8, ROWY + 5]], BLACK, 0.92 * V.textA)
-        const tfs = cTitle.length > 22 ? 13 : 16
-        tiltText(ctx, plane, BARX + 34, ROWY + tfs * 0.34, cTitle, TFONT, tfs, neonBtn.value ? NEON.press : NEON.aurtitle, 0.95 * V.textA, { align: "l", bold: true, glow: (glassMode.value || neonBtn.value || aurTitleTint.value || isOvr("aurtitle")) ? 0.55 : 0 } as any)
-        ctx.restore()
-
-        if (V.badgeA > 0.01) pimg(ctx, png("updt.png"), BARX + BW - 45, ROWY, 54, 46, V.badgeA, BADGE_ROT, true, (imgTint.value && !glassMode.value) ? BLACK : null)
+        ink(color, alpha); ctx.moveTo(x, y); ctx.showText(shown)
     }
-
-
-    if (V.metaA > 0.01) {
-        const A = V.metaA
-        const ts = 14, tx0 = BARX + 1, tyT = GIGSY - ts + 1
-
-        const [pgx, pgy] = plane.project(tx0, GIGSY)
-        ctx.save(); ctx.translate(pgx, pgy); ctx.rotate(GIGS_ROT); ctx.translate(-pgx, -pgy)
-        pfill(ctx, [[tx0 + ts, tyT], [tx0 + ts, tyT + ts], [tx0, tyT + ts]], ac(LBL), 0.95 * A)
-        strokePath(ctx, plane, [[tx0, tyT + ts], [tx0 + ts, tyT]], GRBRT, 0.5 * A, 1)
-        const gfs = 14
-        tiltText(ctx, plane, tx0 + ts + 8, GIGSY, cLabel, GFONT, gfs, ac(LBL), 0.96 * A, { align: "l" } as any)
-        if (cValue) {
-            const lw = uwidth(ctx, GFONT, gfs, cLabel)
-            tiltText(ctx, plane, tx0 + ts + 8 + lw + 7, GIGSY, cValue, GFONT, gfs + 1, ac(LBL), 0.98 * A, { align: "l" } as any)
-        }
-        ctx.restore()
-
-
-        const w2 = 26 + uwidth(ctx, TITLE, 11, "DISMISS")
-        if (cShowU) {
-            const w1 = 26 + uwidth(ctx, TITLE, 11, cULbl), gap = 18
-            let tx = BARX + BW - (w1 + gap + w2)
-            tx += ptip(ctx, tx, TIPY, cUKey, cULbl, A) + gap
-            ptip(ctx, tx, TIPY, "J", "DISMISS", A)
-        } else {
-            ptip(ctx, BARX + BW - w2, TIPY, "J", "DISMISS", A)
-        }
+    const tag = mode === "update" ? "PACKAGES" : mode === "theme" ? "ENVIRONMENT" : "COMPLETE"
+    text("SYSTEM / MAINTENANCE", 18, 22, 8, NEON.aurlbl, 0.7, 230)
+    text(tag, CARD_W - 101, 22, 8, NEON.aurlbl, 0.65, 83)
+    const title = mode === "update" ? `${count} PACKAGE${count === 1 ? "" : "S"} READY`
+        : mode === "theme" ? "ENVIRONMENT UPDATE" : installedTitle
+    const detail = mode === "update" ? "Repository + AUR updates available"
+        : mode === "theme" ? `${tLocal || "Installed version"} → ${tVer}` : installedInfo
+    // Legacy title defaults were dark text on a neon banner. Use readable
+    // foreground on this dark card while respecting explicit title overrides.
+    text(title, 18, 52, 19, isOvr("aurtitle") ? NEON.aurtitle : NEON.aurfg)
+    text(detail, 18, 74, 10, NEON.aurfg, 0.7)
+    ink(NEON.aurline, 0.25); ctx.moveTo(18, 90.5); ctx.lineTo(CARD_W - 18, 90.5); ctx.stroke()
+    const action = (x: number, label: string, combo: string) => {
+        text(label, x, 111, 9, NEON.aurlbl, 0.95, 168)
+        text(combo, x, 130, 8, NEON.aurfg, 0.6, 168)
     }
+    if (mode !== "installed") action(18, mode === "theme" ? "REVIEW RELEASE" : "REVIEW UPDATES", reviewKey)
+    action(mode === "installed" ? 18 : 216, "DISMISS", dismissKey)
+    ctx.restore()
 }
 
 const STAMP = `${USER_DIR}/update-done`
@@ -338,8 +206,12 @@ const bootCheck = () => {
 }
 
 export const AurBarWindow = () => {
-    area = DrawingArea({}); area.set_size_request(Math.round(plane.width * SCALE), Math.round(plane.height * SCALE))
-    onColorChange(() => area.queue_draw())
+    area = DrawingArea({})
+    area.set_size_request(Math.round((CARD_W + INSET * 2) * SCALE), Math.round((CARD_H + INSET * 2) * SCALE))
+    const offColor = onColorChange(() => area?.queue_draw())
+    const offConfig = onConfigChange(() => {
+        if (!animOn("animNotif") && (phase === "entering" || phase === "exiting")) transition(phase === "entering")
+    })
     area.connect("draw", (_w: any, ctx: any) => { ctx.scale(winScale(win), winScale(win)); draw(ctx); return false })
     win = Window({
         name: "aurbar", className: "aug aurbar",
@@ -347,8 +219,13 @@ export const AurBarWindow = () => {
         margin_left: Math.round(14 * SCALE), visible: false, child: area,
     })
     passthrough(win)
-    timeout(3500, bootCheck)
-    recheck = interval(1800000, () => { if (!dismissed) getAurUpdates().then((r) => { if (r.count > 0) showAurBar() }) })
-    tRecheck = interval(21600000, () => { if (!tDismissed) getThemeUpdate().then((t) => { if (t.avail) showThemeBar() }) })
+    const bootT = timeout(3500, bootCheck)
+    const recheck = interval(1800000, () => { if (!dismissed) getAurUpdates().then(r => { if (r.count > 0) showAurBar() }) })
+    const tRecheck = interval(21600000, () => { if (!tDismissed) getThemeUpdate().then(t => { if (t.avail) showThemeBar() }) })
+    win.connect("destroy", () => {
+        stopTick(); bootT.cancel(); recheck.cancel(); tRecheck.cancel()
+        autoT?.cancel(); nextT?.cancel(); autoT = null; nextT = null
+        offColor(); offConfig(); area = null; win = null; phase = "hidden"; opacity = 0
+    })
     return win
 }

@@ -33,13 +33,13 @@ test('tray peeks, reveals its tab on hover, and opens widgets only on click or h
         WeatherPanel: mon => { informationWidgets.push(["weather", mon]); return widget({}) },
         SystemPanel: mon => { systemWidgets.push(mon); return widget({}) },
         MarketsPanel: mon => { informationWidgets.push(["markets", mon]); return widget({}) }, scaleOf: () => 1, TITLE: 'Quantico', MONO: 'Tektur',
-        NEON: { dock: [1, 2, 3], modalbg: [4, 5, 6] },
+        NEON: { dock: [1, 2, 3], press: [10, 20, 30], modalbg: [4, 5, 6] },
         rgbToHex: () => '#010203',
-        animOn: () => animated,
+        animOn: () => animated, cfgStr: () => 'normal',
         onColorChange: cb => { listeners.add(cb); return () => listeners.delete(cb) },
         onConfigChange: cb => { configListeners.add(cb); return () => configListeners.delete(cb) },
     })
-    const source = ['input-region', 'util-tray', 'controls-tray', 'information-tray', 'system-tray'].map(name =>
+    const source = ['attention', 'input-region', 'util-tray', 'controls-tray', 'information-tray', 'system-tray'].map(name =>
         readFileSync(`components/modules/${name}.ts`, 'utf8')
             .replace(/^import .*\n/gm, '').replace(/^export /gm, '')).join('\n')
     vm.runInContext(stripTypeScriptTypes(source) +
@@ -61,6 +61,12 @@ test('tray peeks, reveals its tab on hover, and opens widgets only on click or h
     assert.equal(face.heightRequest, 44, 'tab reserves a fixed canvas')
     assert.ok(peeking(face))
     assert.equal(tab.tooltipText, undefined)
+    tab.has_focus = true; tab.signals['notify::has-focus'](); settle()
+    assert.equal(peeking(face), false, 'keyboard focus exposes the tab without opening its content')
+    assert.equal(docks.length, 0)
+    tab.has_focus = false; tab.signals['notify::has-focus'](); settle()
+    assert.ok(peeking(face))
+    inputChanges = 0
     enter(0)
     const firstTick = [...ticks.keys()][0]
     frame(40); enter(0)

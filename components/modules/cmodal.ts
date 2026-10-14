@@ -22,6 +22,7 @@ import { ThemesWindow, toggleThemeSettings } from "./themesettings.ts"
 import { TerminalThemeCtrl } from "./terminal_theme.ts"
 import { ThemeSettingsCtrl } from "./themesettings_ctrl.ts"
 import { USER, onColorChange, hudSoft, neonBtn } from "./colors.ts"
+import { createAttention } from "./attention.ts"
 import { sndOn, sndFile, animOn } from "./config.ts"
 
 const sh = (c) => execAsync(["sh", "-c", c]).catch(() => "")
@@ -189,6 +190,7 @@ export const createModal = (spec) => {
     let animT: any = null, pollT: any = null, lastFrame = 0
     let hitRegions: any[] = [], drag: any = null, hoverKey: any = null, pressKey: any = null, dragKey: any = null, lastXY: any = null
     const ctrl: any = { name }
+    let attention: ReturnType<typeof createAttention> | null = null
 
     const push: any = (reg) => { hitRegions.push(reg) }
     push.hoverKey = null
@@ -199,14 +201,14 @@ export const createModal = (spec) => {
         setTxtFX(false)
         if (spec.hud) { drawHudFrame(ctx, X, Y, w, h, tabTitle) }
         else if (!spec.noGlass) {
-            drawGlass(ctx, X, Y, w, h, col, spec.glass ?? 1)
+            drawGlass(ctx, X, Y, w, h, col, spec.glass ?? 1, attention ?? undefined)
             txt(ctx, X + 24, Y + 27, tabTitle, TITLE, 15, accent, 0.98, 1, 0.45)
             ctx.setSourceRGBA(col[0], col[1], col[2], 0.32); ctx.setLineWidth(1); ctx.newPath(); ctx.moveTo(X + 14, Y + HEADER); ctx.lineTo(X + w - 14, Y + HEADER); ctx.stroke()
         }
         hitRegions = []; push.hoverKey = hoverKey; push.pressKey = pressKey; push.dragKey = dragKey
         HUDC = spec.hud ? HUDRED : null
         const bX = spec.hud ? X + STRIPW : X, bW = spec.hud ? w - STRIPW : w
-        spec.draw(ctx, { push, X: bX, Y, w: bW, h, col, accent, refresh: () => ctrl.requestDraw() })
+        spec.draw(ctx, { push, X: bX, Y, w: bW, h, col, accent, attention, refresh: () => ctrl.requestDraw() })
         HUDC = null; setTxtFX(false)
     }
     const draw = (screenCtx) => {
@@ -223,12 +225,13 @@ export const createModal = (spec) => {
     const startTimers = () => {
         if (!animT) animT = interval(60, () => {
             seed += 0.05; spec.onFrame?.()
+            const previousIntro = intro
             const sp = animOn("animModal") ? (introTarget > intro ? 0.2 : 0.26) : 1
             if (Math.abs(introTarget - intro) <= sp) intro = introTarget; else intro += Math.sign(introTarget - intro) * sp
             if (introTarget === 0 && intro <= 0.001) { intro = 0; if (win) win.visible = false; stopTimers() }
             const idleMs = spec.idleFrameMs ?? 0
             const now = Date.now()
-            if (intro !== introTarget || (idleMs > 0 && now - lastFrame >= idleMs)) { lastFrame = now; area && area.queue_draw() }
+            if (intro !== previousIntro || (idleMs > 0 && now - lastFrame >= idleMs)) { lastFrame = now; area && area.queue_draw() }
         })
         if (spec.poll && !pollT) pollT = interval(spec.pollMs || 1500, spec.poll)
     }
@@ -264,10 +267,12 @@ export const createModal = (spec) => {
 
     area = DrawingArea({}); area.set_size_request(Math.round(plane.width * SCALE), Math.round(plane.height * SCALE))
     area.connect("draw", (_w, ctx) => (draw(ctx), false))
-    onColorChange(() => { surf = null; ctrl.requestDraw() })
+    const offColor = onColorChange(() => { surf = null; ctrl.requestDraw() })
+    if (!spec.hud && (!spec.noGlass || spec.attention)) attention = createAttention(area)
+    area.connect("unmap", () => attention?.reset())
 
     const evt = EventBox({ child: area })
-    try { evt.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK | Gdk.EventMask.POINTER_MOTION_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK | Gdk.EventMask.SCROLL_MASK | Gdk.EventMask.SMOOTH_SCROLL_MASK) } catch {}
+    try { evt.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK | Gdk.EventMask.POINTER_MOTION_MASK | Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK | Gdk.EventMask.SCROLL_MASK | Gdk.EventMask.SMOOTH_SCROLL_MASK) } catch {}
     const wbtn = (e) => { try { return e.get_button?.()[1] ?? e.button } catch { return 1 } }
     const xy = (e) => { try { const c = e.get_coords?.(); if (c && c.length >= 3) return [c[1] / winScale(win), c[2] / winScale(win)] } catch {} try { const x = e.x, y = e.y; if (x != null && y != null) return [x / winScale(win), y / winScale(win)] } catch {} return [0, 0] }
     const localPoint = (e) => { const [x, y] = xy(e); return unwarpRevealPoint(x, y, plane, W, H, intro, seed) }
@@ -293,9 +298,14 @@ export const createModal = (spec) => {
         }
         return hit
     })
+    evt.connect("enter-notify-event", (_w, e) => {
+        if (visible && e.detail !== Gdk.NotifyType.INFERIOR) attention?.set({ hovered: !!localPoint(e) })
+        return false
+    })
     evt.connect("motion-notify-event", (_w, e) => {
         if (!visible) return false
         const point = localPoint(e)
+        attention?.set({ hovered: !!point })
         if (!point) { if (hoverKey !== null) { hoverKey = null; area.queue_draw() }; return false }
         const [x, y] = point
         lastXY = [x, y]
@@ -305,7 +315,7 @@ export const createModal = (spec) => {
         if (nk !== hoverKey) { hoverKey = nk; area.queue_draw() }
         return false
     })
-    evt.connect("leave-notify-event", () => { if (hoverKey !== null) { hoverKey = null; area.queue_draw() } if (pressKey !== null) { pressKey = null; area.queue_draw() } return false })
+    evt.connect("leave-notify-event", (_w, e) => { if (e.detail === Gdk.NotifyType.INFERIOR) return false; attention?.set({ hovered: false }); if (hoverKey !== null) { hoverKey = null; area.queue_draw() } if (pressKey !== null) { pressKey = null; area.queue_draw() } return false })
     evt.connect("button-release-event", () => { drag = null; if (dragKey !== null) { dragKey = null; area.queue_draw() } if (pressKey !== null) { pressKey = null; area.queue_draw() } return false })
     if (spec.onScroll) evt.connect("scroll-event", (_w, e) => {
         if (!visible) return true
@@ -323,6 +333,8 @@ export const createModal = (spec) => {
     if (spec.anchorRight) { winOpts.anchor = Anchor.RIGHT; winOpts.margin_right = Math.round(SCREEN_WIDTH * 0.25) }
     else if (spec.anchorLeft) { winOpts.anchor = Anchor.LEFT; winOpts.margin_left = spec.marginLeft ?? Math.round(SCREEN_WIDTH * 0.03) }
     win = Window(winOpts)
+    win.connect("notify::is-active", () => attention?.set({ focused: !!win.is_active }))
+    win.connect("destroy", () => { attention?.dispose(); offColor(); stopTimers() })
     win.connect("key-press-event", onKeyPress)
     win.connect("key-release-event", onKeyRelease)
     ctrl.win = win
@@ -798,13 +810,13 @@ const WifiCtrl = () => {
         })
     }
     ctrl = createModal({
-        name: "wifi", tabTitle: "NETWORK", W: 320, H: 380, yaw: 15, pitch: 0, roll: 0, anchorRight: true, noBuiltinClose: true, noGlass: true, keymode: Keymode.ON_DEMAND,
+        name: "wifi", tabTitle: "NETWORK", W: 320, H: 380, yaw: 15, pitch: 0, roll: 0, anchorRight: true, noBuiltinClose: true, noGlass: true, attention: true, keymode: Keymode.ON_DEMAND,
         onOpen: () => { st.selected = null; st.scroll = 0; refresh(); netWheel() },
         onClose: () => { closeWheel(); st.selected = null },
         poll: () => refresh(), pollMs: 5000,
         draw: (ctx, g) => {
             const panelW = 280, panelX = g.X + g.w - panelW - 6, panelH = g.h
-            drawGlass(ctx, panelX, g.Y, panelW, panelH, g.col)
+            drawGlass(ctx, panelX, g.Y, panelW, panelH, g.col, 1, g.attention)
             txt(ctx, panelX + 16, g.Y + 27, "NETWORK", TITLE, 14, g.accent, 0.98, 1, 0.45)
             ctx.setSourceRGBA(g.col[0], g.col[1], g.col[2], 0.32); ctx.setLineWidth(1)
             ctx.newPath(); ctx.moveTo(panelX + 8, g.Y + HEADER); ctx.lineTo(panelX + panelW - 8, g.Y + HEADER); ctx.stroke()
@@ -880,13 +892,13 @@ const BtCtrl = () => {
     const toggle = () => { if (st.on) { sh("bluetoothctl power off").then(() => timeout(700, refresh)) } else { sh("rfkill unblock bluetooth; sleep 0.3; bluetoothctl power on").then(() => timeout(1500, scanBT)) } }
     const wheelList = () => st.devs.map((d) => ({ label: d.name, badge: d.connected ? "CONNECTED" : d.paired ? "PAIRED" : d.mac.slice(0, 8), glyph: null, data: d }))
     ctrl = createModal({
-        name: "bt", tabTitle: "BLUETOOTH", W: 320, H: 380, yaw: 15, pitch: 0, roll: 0, anchorRight: true, noBuiltinClose: true, noGlass: true, keymode: Keymode.ON_DEMAND,
+        name: "bt", tabTitle: "BLUETOOTH", W: 320, H: 380, yaw: 15, pitch: 0, roll: 0, anchorRight: true, noBuiltinClose: true, noGlass: true, attention: true, keymode: Keymode.ON_DEMAND,
         onOpen: () => { st.selected = null; st.scroll = 0; refresh(); if (st.on) timeout(800, scanBT); openWheel({ title: "BLUETOOTH", subtitle: "// KIROSHI :: TRACING DEVICES", footer: "[ SCROLL / ARROWS ] NAVIGATE   [ ENTER / CLICK ] CONNECT   [ ESC ] CLOSE", searchable: true, reserveX: 600, onActivate: (d) => sh(`bluetoothctl ${d.connected ? "disconnect" : "connect"} ${d.mac}`).then(() => timeout(1800, refresh)), onFocus: (d) => { st.selected = d; ctrl.requestDraw() }, onReset: () => ctrl.close(), emptyText: "// NO DEVICES" }, wheelList()) },
         onClose: () => { closeWheel(); st.selected = null },
         poll: () => refresh(), pollMs: 5000,
         draw: (ctx, g) => {
             const panelW = 280, panelX = g.X + g.w - panelW - 6
-            drawGlass(ctx, panelX, g.Y, panelW, g.h, g.col)
+            drawGlass(ctx, panelX, g.Y, panelW, g.h, g.col, 1, g.attention)
             txt(ctx, panelX + 16, g.Y + 27, "BLUETOOTH", TITLE, 14, g.accent, 0.98, 1, 0.45)
             ctx.setSourceRGBA(g.col[0], g.col[1], g.col[2], 0.32); ctx.setLineWidth(1)
             ctx.newPath(); ctx.moveTo(panelX + 8, g.Y + HEADER); ctx.lineTo(panelX + panelW - 8, g.Y + HEADER); ctx.stroke()

@@ -6,6 +6,7 @@ import { polygonRects, clipRects } from "./input-region.ts"
 import { scaleOf } from "../../env.ts"
 import { NEON, onColorChange } from "./colors.ts"
 import { animOn, onConfigChange } from "./config.ts"
+import { createAttention, drawAttentionEdge, attentionColors } from "./attention.ts"
 import { TITLE, MONO } from "./fonts.ts"
 
 type TrayOptions = {
@@ -49,6 +50,13 @@ export const createUtilTray = (options: TrayOptions) => {
             widthRequest: faceWidth,
             heightRequest: faceHeight,
         })
+        const attention = createAttention(face)
+        const cut = Math.min(14 * scale, fullHeight / 2)
+        const points = topEdge
+            ? [[0, 0], [width, 0], [width, fullHeight - cut], [width - cut, fullHeight], [0, fullHeight]]
+            : options.side === "right" && !rightEdge
+            ? [[0, cut], [cut, 0], [width, 0], [width, fullHeight], [0, fullHeight]]
+            : [[0, 0], [width - cut, 0], [width, cut], [width, fullHeight], [0, fullHeight]]
         face.connect("draw", (_w, ctx) => {
             const w = width, h = fullHeight
             ctx.save()
@@ -72,13 +80,14 @@ export const createUtilTray = (options: TrayOptions) => {
                 }
                 ctx.closePath()
             }
-            const ink = (alpha = 1) => ctx.setSourceRGBA(...NEON.dock.map(v => v / 255), alpha)
+            const { primary, secondary } = attentionColors()
+            const accent = primary.map((v, i) => v + (secondary[i] - v) * attention.value)
+            const ink = (alpha = 1) => ctx.setSourceRGBA(...accent, alpha)
             path()
             ctx.setSourceRGBA(...NEON.modalbg.map((v, i) => (v * 0.94 + NEON.dock[i] * 0.06) / 255), 0.98); ctx.fill()
             // All detailing is static vector paint; no blur, texture or pulse timers.
-            path()
-            ink(hovered || expanded ? 0.95 : 0.65)
-            ctx.setLineWidth(Math.max(1, scale)); ctx.stroke()
+            drawAttentionEdge(ctx, points, attention.value, attention.focused, 0.65, scale)
+            ctx.setLineWidth(Math.max(1, scale))
             ink(0.12); ctx.rectangle(0, 0, 33 * scale, h); ctx.fill()
             ink(0.8); ctx.rectangle(0, 0, 30 * scale, 3 * scale); ctx.fill()
             ink(0.3)
@@ -111,12 +120,6 @@ export const createUtilTray = (options: TrayOptions) => {
             ctx.restore()
             return false
         })
-        const cut = Math.min(14 * scale, fullHeight / 2)
-        const points = topEdge
-            ? [[0, 0], [width, 0], [width, fullHeight - cut], [width - cut, fullHeight], [0, fullHeight]]
-            : options.side === "right" && !rightEdge
-            ? [[0, cut], [cut, 0], [width, 0], [width, fullHeight], [0, fullHeight]]
-            : [[0, 0], [width - cut, 0], [width, cut], [width, fullHeight], [0, fullHeight]]
         const tabOutline = polygonRects(rightEdge ? points.map(([x, y]) => [y, width - x]) : points)
         const peekOutline = clipRects(tabOutline.map(r => ({ ...r,
             x: r.x + (rightEdge ? fullHeight - peekHeight : 0),
@@ -132,7 +135,8 @@ export const createUtilTray = (options: TrayOptions) => {
             if (tabTick) { face.remove_tick_callback(tabTick); tabTick = 0 }
         }
         const updateTab = (animate = true) => {
-            const target = hovered || expanded ? fullHeight : peekHeight
+            attention.set({ hovered, focused: !!tab.has_focus, selected: expanded })
+            const target = hovered || expanded || tab.has_focus ? fullHeight : peekHeight
             const moving = animate && animOn("animModal") && face.get_mapped()
             // Duplicate crossing events must not restart an in-flight animation.
             if (moving && target === tabTarget && tabTick) return
@@ -167,7 +171,7 @@ export const createUtilTray = (options: TrayOptions) => {
             child: face,
             onClicked: () => toggle(),
         })
-        tab.connect("notify::has-focus", () => face.queue_draw())
+        tab.connect("notify::has-focus", () => updateTab())
         tab.get_accessible()?.set_name(`${options.label} tray`)
         const panel = Box({ vertical: !rightEdge, children: topEdge ? [tab, body] : [body, tab] })
         const root = EventBox({ className: "util-tray", child: panel })
@@ -208,7 +212,7 @@ export const createUtilTray = (options: TrayOptions) => {
             }
             return false
         })
-        root.connect("unmap", () => { hovered = false; setExpanded(false); updateTab(false) })
+        root.connect("unmap", () => { hovered = false; setExpanded(false); updateTab(false); attention.reset() })
         const motion = () => {
             body.transition_duration = animOn("animModal") ? 180 : 0
             updateTab(false)
@@ -219,7 +223,7 @@ export const createUtilTray = (options: TrayOptions) => {
         const controller = { toggle }
         trays.set(mon, controller)
         root.connect("destroy", () => {
-            stopTick()
+            stopTick(); attention.dispose()
             root._onHudInputChanged = null
             unsubscribe()
             offConfig()

@@ -230,7 +230,6 @@ CD.actions = {
     { id="hud.information", label="WEATHER / MARKETS TRAY", mod="SUPER + ALT", key="W", group="deck", run=sock("information-tray") },
     { id="hud.system", label="CPU / RAM TRAY", mod="SUPER + ALT", key="S", group="deck", run=sock("system-tray") },
     { id="hud.widgets", label="SHOW / HIDE WIDGETS", mod="SUPER + ALT", key="H", group="deck", run=sock("toggle-widgets") },
-    { id="hud.widgets", label="SHOW / HIDE WIDGETS", mod="SUPER + ALT", key="H", group="deck", run=sock("toggle-widgets") },
     { id="hud.palettenext", label="NEXT PALETTE", mod="SUPER + ALT", key="P", group="deck", run=sock("palette-next") },
     { id="hud.paletteprev", label="PREVIOUS PALETTE", mod="SUPER + ALT + SHIFT", key="P", group="deck", run=sock("palette-prev") },
     { id="hud.toggle",   label="TOGGLE HUD",          mod="@themeMod", key="Z",         group="deck", run=sock("toggle-hud") },

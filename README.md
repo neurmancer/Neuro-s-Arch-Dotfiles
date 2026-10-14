@@ -44,6 +44,16 @@
 
 ### About each component
 
+The **secondary-color takeover prototype** is active on utility tray tabs, the
+CPU/RAM panel, and standard glass dialog borders (including markets, the full
+forecast, and network/Bluetooth panels). Hover advances the secondary accent
+around the frame; keyboard focus adds a thicker edge and inset corner marker.
+Expanded tray tabs retain their secondary accent. In Theme Settings → Animations,
+**SECONDARY-COLOR TAKEOVER** controls motion and **EDGE GLOW** offers Off, Low,
+Normal, and Strong. Disabling motion preserves the final focus/hover state.
+Legacy HUD frames, inner canvas controls, and external application borders still
+await migration.
+
 > Those are the original versions that I'll keeop 'till I fuck with them
 
 - **Corner widgets** -> Renders the same UI style of the game UI shortcuts like Radio, Vehicle, Phone, Cyberware item etc
@@ -64,9 +74,9 @@
   -  Shows App Launcher, with a custom icon gathered from the design concepts of Cyberpunk 2077
   -  App Launcher shows a custom launcher that mimicks the Kiroshi Scanner, with audio and animations and the same shape of the 'quickhacks' frames.
 
-- **Pacman hook** -> Displays V's streetcred reputation frame
-  - Whenever a new pacman pkg is added, it will show animated frame as "PKG Installed\nVersion XXX" 
-  - Whenever AUR packages have upgrades available, it will show update notifications.
+- **Package / update notices** -> Dark, angular console cards that follow the desktop palette.
+  - Show package installation confirmations, repository + AUR update counts, and environment releases.
+  - Display your configured review and dismiss shortcuts, with a brief animation that respects reduced motion. Notices remain click-through.
 
   
 - **Screen Recording** -> Starts recording the active screen, and with the same HUD components from in-game when acessing cameras from quickhacks (Toggleable by SUPER+SHIFT+R)
@@ -135,6 +145,13 @@ Open the full cheat-sheet with all keybinds anytime with **`SUPER+SHIFT+H`**.
 
 ### HUD & widgets
 
+The top-left **CPU / RAM** tray opens downward with **SUPER + ALT + S**, or by
+hovering over its edge tab and clicking. Two segmented meters show aggregate CPU
+usage and RAM in use (including used/total GiB). Click the panel to open the full
+system monitor; **SUPER + SHIFT + C** still opens that view directly. CPU needs
+one sampling interval after opening; sampling runs once per second while visible
+and stops when all system trays are closed.
+
 The bottom-left **CONTROLS** tab peeks out from the screen edge when idle.
 Hover to reveal the full tab; click it or press **SUPER + ALT + C** to open or
 close volume, brightness, music, recording, Wi-Fi, Bluetooth, and power controls.
@@ -158,6 +175,7 @@ their compact widgets and expanded views are hidden.
 | --- | --- |
 | `SUPER + ALT + C` | Toggle controls tray |
 | `SUPER + ALT + W` | Toggle weather / markets tray |
+| `SUPER + ALT + S` | Toggle CPU / RAM tray |
 | `SUPER` / `SUPER + Space` | App launcher |
 | `SUPER + SHIFT + Z` | Toggle HUD above / below windows |
 | `SUPER + ALT + H` | Hide / show all desktop widgets together (saved across restarts) |

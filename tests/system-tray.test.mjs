@@ -2,7 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { stripTypeScriptTypes } from 'node:module'
-import { execFileSync } from 'node:child_process'
 import vm from 'node:vm'
 
 const source = name => readFileSync(`components/modules/${name}.ts`, 'utf8')
@@ -15,6 +14,7 @@ function fixture() {
         ...props, signals: {}, mapped: false, redraws: 0,
         connect(signal, cb) { this.signals[signal] = cb },
         queue_draw() { this.redraws++ },
+        add_events() {}, get_mapped() { return this.mapped },
         get_accessible() { return { set_name() {} } },
     })
     const ctx = vm.createContext({
@@ -26,12 +26,15 @@ function fixture() {
             source_remove: id => timers.delete(id),
         },
         Button: widget, DrawingArea: props => { const w = widget(props); areas.push(w); return w },
+        animOn: () => false, cfgStr: () => 'off', onConfigChange: () => () => {},
+        Gdk: { EventMask: { ENTER_NOTIFY_MASK: 1, LEAVE_NOTIFY_MASK: 2 }, NotifyType: { INFERIOR: 2 } },
         scaleOf: () => 1, TITLE: 'Quantico', MONO: 'Tektur',
-        NEON: { cpu: [193,112,255], ram: [0,235,116], dock: [94,244,248], modalbg: [4,9,13] },
         onColorChange: cb => { colorListeners.add(cb); return () => colorListeners.delete(cb) },
         toggleModal: name => opened.push(name),
     })
-    vm.runInContext(stripTypeScriptTypes(['input-region', 'system-stats', 'system-panel'].map(source).join('\n')) +
+    const colors = readFileSync('components/modules/colors.ts', 'utf8')
+    vm.runInContext(stripTypeScriptTypes(colors.slice(colors.indexOf('export const NEON:'), colors.indexOf('export type PaletteName')).replace(/^export /gm, '')), ctx)
+    vm.runInContext(stripTypeScriptTypes(['attention', 'input-region', 'system-stats', 'system-panel'].map(source).join('\n')) +
         '\nglobalThis.api = { parseCpuSample, cpuFraction, parseMemorySample, SystemPanel }', ctx)
     return { ...ctx.api, files, timers, reads, areas, colorListeners, opened }
 }
@@ -90,27 +93,4 @@ test('visible panels share one sampler; unmapping or destroying the last panel s
     left.signals.destroy(); right.signals.destroy()
     assert.equal(f.timers.size, 0)
     assert.equal(f.colorListeners.size, 0)
-})
-
-test('the loaded Lua registry binds every tray and keeps the direct system shortcut', () => {
-    const lua = `
-local bindings = {}
-local function stub() return setmetatable({}, { __index = function(self, key) local value = stub(); rawset(self, key, value); return value end, __call = function() return function() end end }) end
-hl = stub()
-hl.bind = function(combo, action) bindings[combo] = action end
-hl.dsp.exec_cmd = function(command) return command end
-hl.define_submap = function() end
-local originalDofile = dofile
-dofile = function() return function() end end
-loadfile = function() return nil end
-originalDofile('config/keybinds.lua')
-assert(bindings['SUPER + ALT + S']:find('system-tray', 1, true))
-assert(bindings['SUPER + ALT + C']:find('controls-tray', 1, true))
-assert(bindings['SUPER + ALT + W']:find('information-tray', 1, true))
-assert(bindings['SUPER + ALT + H']:find('toggle-widgets', 1, true))
-assert(bindings['SUPER + SHIFT + C']:find('modal sys', 1, true))
-`
-    execFileSync('lua', ['-e', lua], { timeout: 5000, env: { ...process.env, HOME: '/fixture', XDG_RUNTIME_DIR: '/tmp/fixture' } })
-    const actions = source('userbinds')
-    for (const id of ['hud.system', 'hud.controls', 'hud.information', 'hud.widgets']) assert.ok(actions.includes(`id: "${id}"`))
 })

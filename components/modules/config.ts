@@ -8,7 +8,8 @@ export type CfgVal = boolean | string
 
 const DEF: Record<string, CfgVal> = {
  anim: true, animWorkspace: false, animGlitch: true, animModal: true,
- animNotif: true, animMusic: true, animWheel: true,
+ animNotif: true, animMusic: true, animWheel: true, animInteraction: true,
+ interactionGlow: "normal",
 
  snd: true, sndNotif: true, sndNotifFile: "",
  sndWheel: true, sndWheelStart: "", sndWheelActive: "", sndWheelEnd: "",
