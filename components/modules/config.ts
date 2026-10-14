@@ -12,7 +12,7 @@ const DEF: Record<string, CfgVal> = {
 
  snd: true, sndNotif: true, sndNotifFile: "",
  sndWheel: true, sndWheelStart: "", sndWheelActive: "", sndWheelEnd: "",
- sndOverlay: true, sndOverlayFile: "", sndKillFile: "",
+ sndOverlay: true, sndOverlayFile: "",
 
 }
 const CFG: Record<string, CfgVal> = { ...DEF }

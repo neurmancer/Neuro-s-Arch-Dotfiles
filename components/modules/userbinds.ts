@@ -146,6 +146,10 @@ export const readUserLua = (): UserLua => {
 }
 
 const THEME_ACTIONS: ThemeAction[] = [
+    { id: "hud.controls", label: "CONTROLS TRAY", group: "deck", mod: "SUPER + ALT", key: "C" },
+    { id: "hud.information", label: "WEATHER / MARKETS TRAY", group: "deck", mod: "SUPER + ALT", key: "W" },
+    { id: "hud.system", label: "CPU / RAM TRAY", group: "deck", mod: "SUPER + ALT", key: "S" },
+    { id: "hud.widgets", label: "SHOW / HIDE WIDGETS", group: "deck", mod: "SUPER + ALT", key: "H" },
     { id: "hud.toggle",   label: "TOGGLE HUD",          group: "deck", mod: "@themeMod", key: "Z" },
     { id: "hud.vol",      label: "VOLUME",              group: "deck", mod: "@themeMod", key: "V" },
     { id: "hud.brt",      label: "BRIGHTNESS",          group: "deck", mod: "@themeMod", key: "I" },
@@ -170,7 +174,6 @@ const THEME_ACTIONS: ThemeAction[] = [
     { id: "tool.rec",     label: "SCREEN RECORD",       group: "deck", mod: "@themeMod", key: "R" },
     { id: "tool.term",    label: "TERMINAL",            group: "deck", mod: "@themeMod", key: "T" },
     { id: "tool.shot",    label: "SCREENSHOT",          group: "deck", mod: "@themeMod", key: "S" },
-    { id: "tool.kill",    label: "FORCE KILL",          group: "deck", mod: "@themeMod", key: "K" },
     { id: "tool.lock",    label: "LOCK SCREEN",         group: "deck", mod: "@themeMod", key: "L" },
     { id: "win.full",     label: "FULL SCREEN",         group: "win",  mod: "SUPER + SHIFT", key: "F" },
     { id: "win.float",    label: "TOGGLE FLOAT",        group: "win",  mod: "SUPER",         key: "F" },

@@ -2327,7 +2327,6 @@ const CFG_SECTIONS: [string, CfgRow[]][] = [
         { t: "tog", k: "sndOverlay", label: "OVERLAY SOUNDS" },
         { t: "car", k: "ovlGrp", label: "OVERLAY SAMPLES", dep: "sndOverlay" },
             { t: "snd", k: "sndOverlayFile", label: "OVERLAY", grp: "ovlGrp" },
-            { t: "snd", k: "sndKillFile", label: "KILL_APP", grp: "ovlGrp" },
     ]],
 
 ]
@@ -2336,12 +2335,12 @@ const CFG_DEP: Record<string, string> = {
     animWorkspace: "anim", animGlitch: "anim", animModal: "anim", animNotif: "anim", animMusic: "anim", animWheel: "anim",
     sndNotif: "snd", sndNotifFile: "sndNotif",
     sndWheel: "snd", sndWheelStart: "sndWheel", sndWheelActive: "sndWheel", sndWheelEnd: "sndWheel",
-    sndOverlay: "snd", sndOverlayFile: "sndOverlay", sndKillFile: "sndOverlay",
+    sndOverlay: "snd", sndOverlayFile: "sndOverlay",
 }
 const CFG_FALLBACK: Record<string, string> = {
     sndNotifFile: "notif.mp3",
     sndWheelStart: "kiroshi_on.ogg", sndWheelActive: "kiroshi_menu.ogg", sndWheelEnd: "kiroshi_off.ogg",
-    sndOverlayFile: "active.ogg", sndKillFile: "kill.ogg",
+    sndOverlayFile: "active.ogg",
 }
 
 let cfgExpand: Record<string, boolean> = {}

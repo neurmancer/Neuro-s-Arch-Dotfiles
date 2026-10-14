@@ -1120,13 +1120,6 @@ once("copyq --start-server")
 once("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
 once("nm-applet --indicator")
 once("blueman-applet")
-once(cyberpunk .. "/scripts/overkill prewarm")
-
-hl.define_submap("kill", function()
-    hl.bind("mouse:272", app("scripts/overkill kill"))
-    hl.bind("escape",    app("scripts/overkill exit"))
-end)
-
 hl.bind("SUPER + E", hl.dsp.exec_cmd("dolphin"))
 
 USEREOF
@@ -1435,7 +1428,6 @@ printf "${YEL}${B}  ▸ KEYBINDS   |::|   ⧉ = SUPER + SHIFT${R}\n"
 printf "    ${CYAN}${B}SUPER + TAB   App launcher${R}\n"
 printf "    ${CYAN}${B}SUPER + T    Kitty terminal${R}\n"
 printf "    ${CYAN}${B}⧉ + T        Kitty terminal${R}\n"
-printf "    ${CYAN}${B}⧉ + K        KILL MODE ${R}${GREY}(click a window to kill · ESC exits)${R}\n"
 printf "    ${CYAN}${B}⧉ + Z        Toggles HUD${R}\n"
 printf "    ${CYAN}${B}⧉ + S        Screenshot${R}\n"
 printf "    ${CYAN}${B}⧉ + R        Start/Stop Recording Screen${R}\n"

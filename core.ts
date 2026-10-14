@@ -17,6 +17,8 @@ import { openMarketsModal } from "./components/modules/markets.ts"
 import { InformationTray, toggleInformationTray } from "./components/modules/information-tray.ts"
 import { openTimeModal } from "./components/modules/timeset.ts"
 import { ControlsTray, toggleControlsTray } from "./components/modules/controls-tray.ts"
+import { SystemTray, toggleSystemTray } from "./components/modules/system-tray.ts"
+import { widgetInputRects } from "./components/modules/input-region.ts"
 import { OsdWindow } from "./components/modules/osd.ts"
 import { NotifPopupWindow, notifReadCurrent, notifDismiss } from "./components/modules/notifpopup.ts"
 import { NotifHudWindow, toggleNotifHud, dismissAll, isDetailView } from "./components/modules/notifmessages.ts"
@@ -70,6 +72,9 @@ const surface = (mon, name, anchor, child, extra = {}) => {
  child: wrap,
  ...extra,
  })
+ w._hudRoot = child
+ child._onHudInputChanged = () => applyHudInput(w)
+ w.connect("destroy", () => { child._onHudInputChanged = null })
  hudWins.push(w)
  return w
 }
@@ -77,37 +82,6 @@ const surface = (mon, name, anchor, child, extra = {}) => {
 let hudOnTop = false
 
 const Cairo = (imports as any).cairo
-const shapedRegion = (win, rectFill) => {
- try {
- if (win.get_realized?.() === false || win.get_mapped?.() === false) return null
- const w = win.get_allocated_width?.() || 0, h = win.get_allocated_height?.() || 0
- if (w < 1 || h < 1) return null
- const surf = new Cairo.ImageSurface(Cairo.Format.ARGB32, w, h)
- const cr = new Cairo.Context(surf)
- if (rectFill) { cr.setSourceRGBA(1, 1, 1, 1); cr.rectangle(0, 0, w, h); cr.fill() }
- else {
- win.draw(cr)
-
-
-
- const tmp = new Cairo.ImageSurface(Cairo.Format.ARGB32, w, h)
- const ct = new Cairo.Context(tmp); ct.setSourceSurface(surf, 0, 0); ct.paint()
- for (let i = 0; i < 6; i++) { cr.setSourceSurface(tmp, 0, 0); cr.paint() }
- }
- const s = surfaceRect(win)
- if (s) {
- cr.setOperator(0)
- for (const r of winCache) {
- const ax = Math.max(r.x, s.x), ay = Math.max(r.y, s.y)
- const bx = Math.min(r.x + r.w, s.x + s.w), by = Math.min(r.y + r.h, s.y + s.h)
- if (bx > ax && by > ay) { cr.rectangle(ax - s.x, ay - s.y, bx - ax, by - ay); cr.fill() }
- }
- cr.setOperator(2)
- }
- surf.flush()
- return Gdk.cairo_region_create_from_surface(surf)
- } catch (e) { print("[cyberpunk] hud region:", e); return null }
-}
 let winCache: any[] = []
 let winKey = ""
 const surfaceRect = (win) => {
@@ -126,19 +100,25 @@ const surfaceRect = (win) => {
 }
 const applyHudInput = (win) => {
  try {
+ if (!win.get_mapped()) return
  const gw = win.get_window?.(); if (!gw) return
- if (hudOnTop) {
- const aw = win.get_allocated_width?.() || 0, ah = win.get_allocated_height?.() || 0
- if (aw > 0 && ah > 0) {
- const full = new Cairo.Region()
- full.unionRectangle({ x: 0, y: 0, width: aw, height: ah })
- gw.input_shape_combine_region(full, 0, 0)
+ const rects = widgetInputRects(win._hudRoot, win)
+ const s = surfaceRect(win)
+ const key = JSON.stringify([rects, s, hudOnTop, hudOnTop ? "" : winKey])
+ if (key === win._inputKey) return
+ const region = new Cairo.Region()
+ for (const r of rects) if (r.width > 0 && r.height > 0) region.unionRectangle(r)
+ // Preserve click-through over application windows on the bottom HUD layer.
+ // TOP still excludes hidden tray content and the tab's transparent corners.
+ if (!hudOnTop && s) for (const r of winCache) {
+ const x = Math.max(r.x, s.x), y = Math.max(r.y, s.y)
+ const width = Math.min(r.x + r.w, s.x + s.w) - x
+ const height = Math.min(r.y + r.h, s.y + s.h) - y
+ if (width > 0 && height > 0) region.subtractRectangle({ x: x - s.x, y: y - s.y, width, height })
  }
- return
- }
- const r = shapedRegion(win, !!(win as any)._rectHit)
- gw.input_shape_combine_region(r || null, 0, 0)
-} catch {}
+ gw.input_shape_combine_region(region, 0, 0)
+ win._inputKey = key
+} catch (e) { print("[cyberpunk] hud input:", e) }
 }
 const applyHudInputAll = () => { for (const w of hudWins) deferShape(w) }
 const deferShape = (win) => {
@@ -237,7 +217,10 @@ const queueMonitorSync = () => {
 }
 const createMonitorHud = (mon) => {
  const first = hudWins.length
- surface(mon, "information-tray", Anchor.BOTTOM | Anchor.RIGHT, InformationTray(mon), {
+ surface(mon, "system-tray", Anchor.TOP | Anchor.LEFT, SystemTray(mon), {
+   margin_top: 0, margin_right: 0, margin_bottom: 0, margin_left: 0,
+ })
+ surface(mon, "information-tray", Anchor.RIGHT, InformationTray(mon), {
    margin_top: 0, margin_right: 0, margin_bottom: 0, margin_left: 0,
  })
  surface(mon, "controls-tray", Anchor.BOTTOM | Anchor.LEFT, ControlsTray(mon), {
@@ -246,8 +229,9 @@ const createMonitorHud = (mon) => {
  for (const w of hudWins.slice(first)) {
  w._widgetsHidden = !widgetsVisible
  if (!widgetsVisible) w.visible = false
- w.connect("size-allocate", () => deferShape(w))
- w.connect("map", () => deferShape(w))
+ // Geometry is cheap enough to update with allocation, before the next paint.
+ w.connect_after("size-allocate", () => applyHudInput(w))
+ w.connect("map", () => { w._inputKey = null; applyHudInput(w) })
  }
  return hudWins.slice(first)
 }
@@ -366,6 +350,9 @@ App.start({
  } else if (request === "record-stop") {
  try { setRecording(false) } catch (e) { print(e) }
  reply("ok")
+ } else if (request === "system-tray") {
+ try { reply(toggleSystemTray() ? "shown" : "hidden") }
+ catch (e) { print(e); reply("err") }
  } else if (request === "controls-tray") {
  try { reply(toggleControlsTray() ? "shown" : "hidden") }
  catch (e) { print(e); reply("err") }

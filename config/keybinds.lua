@@ -9,10 +9,6 @@ CD.defaultMod = "SUPER + SHIFT"
 CD.mod        = CD.defaultMod
 CD.reserved   = {}
 
-local once = function(cmd)
-    hl.on("hyprland.start", function() hl.exec_cmd(cmd) end)
-end
-
 local function sock(msg)
     return hl.dsp.exec_cmd('echo "' .. msg .. '" | socat - UNIX-CONNECT:' .. augSock)
 end
@@ -153,11 +149,6 @@ end
 
 doScan()
 
-CD.actions = {
-    { id="hud.controls", label="CONTROLS TRAY", mod="SUPER + ALT", key="C", group="deck", run=sock("controls-tray") },
-    { id="hud.information", label="WEATHER / MARKETS TRAY", mod="SUPER + ALT", key="W", group="deck", run=sock("information-tray") },
-    { id="hud.widgets", label="SHOW / HIDE WIDGETS", mod="SUPER + ALT", key="H", group="deck", run=sock("toggle-widgets") },}
-
 function CD.bind(combo, run, label, opts)
     CD.reserved[#CD.reserved + 1] = { combo = combo, label = label or "SYSTEM" }
     local key = normCombo(combo)
@@ -228,13 +219,6 @@ CD.bind("XF86AudioStop", hl.dsp.exec_cmd("playerctl stop"), "STOP")
 CD.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("brightnessctl set 5%+"), "BRIGHTNESS UP")
 CD.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl set 5%-"), "BRIGHTNESS DOWN")
 
-once(cyberpunk .. "/scripts/overkill prewarm")
-
-hl.define_submap("kill", function()
-    hl.bind("mouse:272", app("scripts/overkill kill"))
-    hl.bind("escape",    app("scripts/overkill exit"))
-end)
-
 for i = 1, 10 do
     local key = i % 10
     CD.bind("ALT + SHIFT + " .. key, app("scripts/ws move " .. i), "MOVE TO WS " .. i)
@@ -242,6 +226,10 @@ for i = 1, 10 do
 end
 
 CD.actions = {
+    { id="hud.controls", label="CONTROLS TRAY", mod="SUPER + ALT", key="C", group="deck", run=sock("controls-tray") },
+    { id="hud.information", label="WEATHER / MARKETS TRAY", mod="SUPER + ALT", key="W", group="deck", run=sock("information-tray") },
+    { id="hud.system", label="CPU / RAM TRAY", mod="SUPER + ALT", key="S", group="deck", run=sock("system-tray") },
+    { id="hud.widgets", label="SHOW / HIDE WIDGETS", mod="SUPER + ALT", key="H", group="deck", run=sock("toggle-widgets") },
     { id="hud.widgets", label="SHOW / HIDE WIDGETS", mod="SUPER + ALT", key="H", group="deck", run=sock("toggle-widgets") },
     { id="hud.palettenext", label="NEXT PALETTE", mod="SUPER + ALT", key="P", group="deck", run=sock("palette-next") },
     { id="hud.paletteprev", label="PREVIOUS PALETTE", mod="SUPER + ALT + SHIFT", key="P", group="deck", run=sock("palette-prev") },
@@ -269,7 +257,6 @@ CD.actions = {
     { id="tool.rec",     label="SCREEN RECORD",       mod="@themeMod", key="R",         group="deck", run=app("scripts/screenrecord") },
     { id="tool.term",    label="TERMINAL",            mod="@themeMod", key="T",         group="deck", run=app("scripts/terminal") },
     { id="tool.shot",    label="SCREENSHOT",          mod="@themeMod", key="S",         group="deck", run=app("scripts/screenshot") },
-    { id="tool.kill",    label="FORCE KILL",          mod="@themeMod", key="K",         group="deck", run=app("scripts/overkill") },
     { id="tool.lock",    label="LOCK SCREEN",         mod="@themeMod", key="L",         group="deck", run=app("components/login/lock.sh") },
 
     { id="win.full",     label="FULL SCREEN",   mod="SUPER + SHIFT", key="F",     group="win", run=hl.dsp.window.fullscreen({ mode = "fullscreen" }) },

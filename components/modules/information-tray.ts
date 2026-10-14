@@ -7,7 +7,10 @@ import { NEON, onColorChange, rgbToHex } from "./colors.ts"
 const information = createUtilTray({
     label: "WEATHER / MARKETS",
     side: "right",
-    width: 230,
+    edge: "right",
+    width: 260,
+    code: "02",
+    caption: "EXTERNAL / FEEDS",
     content: mon => {
         const panel = Box({ vertical: true, children: [WeatherPanel(mon), MarketsPanel(mon)] })
         // A filled surface keeps the entire compact forecast/feed clickable,

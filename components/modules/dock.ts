@@ -9,6 +9,7 @@ import { togglePlayer, isPlayerOpen, onPlayerChange, playPauseActive } from "./p
 import { makePlane, strokePath, tiltText, tiltImage, fillQuad } from "./proj.ts"
 import { NEON, f, RGB, onColorChange, imgTint, neonBtn, notifBubble } from "./colors.ts"
 import { animOn } from "./config.ts"
+import { polygonRects } from "./input-region.ts"
 const NOTIF_RED: RGB = NEON.notifbadge
 import { CYBER_DIR, scaleOf } from "../../env.ts"
 
@@ -179,6 +180,9 @@ const VertDock = (mon?: any, includeNotifications = true) => {
  let destroyed = false
  const on = {}, open = {}, hv = {}
   const area = DrawingArea({}); area.set_size_request(Math.round((vsp.width + 10) * S), Math.round((vsp.height + 20) * S)); _dockArea = area
+ const inputRects = layout.flatMap(s => polygonRects(vertSlotFrame(s.x, s.y, s.w, s.h)
+     .map(([u, v]) => vsp.project(u, v).map(n => n * S))))
+ area._hudInputRects = () => inputRects
  const recolorV = onColorChange(() => area.queue_draw())
  area.connect("draw", (_w, ctx) => {
  ctx.scale(S, S)
@@ -257,6 +261,9 @@ const HorizDock = (mon?: any) => {
  let destroyed = false
  const on = {}, open = {}, hv = {}
   const area = DrawingArea({}); area.set_size_request(Math.round(hsp.width * S), Math.round(hsp.height * S))
+ const inputRects = HLAYOUT.flatMap(s => polygonRects(horizSlotFrame(s.x, s.y, s.w, s.h)
+     .map(([u, v]) => hsp.project(u, v).map(n => n * S))))
+ area._hudInputRects = () => inputRects
  const recolorH = onColorChange(() => area.queue_draw())
  area.connect("draw", (_w, ctx) => {
  ctx.scale(S, S)

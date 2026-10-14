@@ -1437,7 +1437,7 @@ fi`).then(() => timeout(200, fetchInitApps))
             const pulse = 0.94 + 0.06 * Math.sin(Date.now() / 500)
             const vcx = FW / 2, vcy = FH / 2, reach = Math.hypot(FW, FH) / 2
             const vg = new Cairo.RadialGradient(vcx, vcy, reach * 0.16, vcx, vcy, reach * 0.98)
-            // the sys monitor veil is dusk orange, kill mode and screenshot use the cyan overlay
+            // the sys monitor veil is dusk orange, screenshots use the cyan overlay
             const [ov0, ov1, ov2] = USER.sysveil || USER.overlay
             vg.addColorStopRGBA(0, ov0 * 0.08, ov1 * 0.08, ov2 * 0.08, 0.46)
             vg.addColorStopRGBA(0.5, ov0 * 0.2, ov1 * 0.2, ov2 * 0.2, 0.68)
@@ -1607,7 +1607,7 @@ const KEYBINDS = [
     ["I", "BRIGHTNESS"], ["U", "SYSTEM UPGRADE"], ["J", "DISMISS UPDATE"], ["Q", "CYBERARCH UPDATE"], ["M", "MICROPHONE"],["G", "MARKETS"], ["O", "MUSIC PLAYER"], ["N", "NETWORKS"],
     ["B", "BLUETOOTH"], ["W", "FORECAST"], ["P", "POWER MENU"], ["Y", "BATTERY"],
     ["C", "CPU / RAM"], ["L", "LOCKSCREEN"], ["R", "SCREEN RECORD"], ["S", "SCREENSHOT"],
-    ["T", "TERMINAL"], ["K", "KILL MODE"], ["-", "TIME / TIMEZONE"], ["TAB", "TERMINAL THEME"],
+    ["T", "TERMINAL"], ["-", "TIME / TIMEZONE"], ["TAB", "TERMINAL THEME"],
 ]
 export const drawKeyCap = (ctx, x, y, label, h, opts: { glow?: boolean; muted?: boolean; fs?: number; col?: any } = {}) => {
     let kc = opts.glow ? USER.press : (neonBtn.value ? USER.press : CYAN)

@@ -15,8 +15,8 @@ $line:  rgba(255, 45, 61, 0.30);
 window.aug, .aug { background-color: transparent; }
 .aug-wrap { background-color: transparent; }
 
-// The controls tab meets the physical bottom/left edge, without GTK button chrome.
-.controls-tray-wrap, .information-tray-wrap, .util-tray, .util-tray-tab {
+// Tray tabs meet the bottom-left or middle-right screen edge without GTK chrome.
+.controls-tray-wrap, .information-tray-wrap, .system-tray-wrap, .util-tray, .util-tray-tab {
     margin: 0;
     padding: 0;
     border: none;

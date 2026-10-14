@@ -4,6 +4,8 @@ import { createUtilTray } from "./util-tray.ts"
 
 const controls = createUtilTray({
     label: "CONTROLS",
+    code: "01",
+    caption: "LOCAL / I/O",
     content: mon => Box({ vertical: true, children: [Toggles(mon, false), HorizDock(mon)] }),
 })
 export const ControlsTray = controls.create

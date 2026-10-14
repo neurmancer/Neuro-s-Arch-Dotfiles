@@ -54,7 +54,7 @@
     -> the APPS Tray is shows the tray for active apps along with custom tilted context menus
 
     
-- **Weather / markets tray** -> A lower-right tray containing the compact forecast and market feed.
+- **Weather / markets tray** -> A right-center tray containing the compact forecast and market feed.
   - Hover over the edge strip to reveal its tab; click it or use `SUPER + ALT + W` to open or close the widgets.
   - Weather shows the saved city's current conditions and seven-day forecast. Click to open the full forecast; right-click to change the city. The clock/date remains with weather; right-click the clock to open time settings.
   - Markets retain stocks, crypto, news and sparklines. Double-click to open the full market view.
@@ -68,7 +68,6 @@
   - Whenever a new pacman pkg is added, it will show animated frame as "PKG Installed\nVersion XXX" 
   - Whenever AUR packages have upgrades available, it will show update notifications.
 
-- **KILL MODE** -> Starts an animated overlay similar to Kiroshi aswell, click on any app to forcekill it (Toggleable by SUPER+SHIFT+K)
   
 - **Screen Recording** -> Starts recording the active screen, and with the same HUD components from in-game when acessing cameras from quickhacks (Toggleable by SUPER+SHIFT+R)
 
@@ -147,8 +146,9 @@ after a shell restart. Individual utility shortcuts work even while the tray is
 closed; messages remain available through **SUPER + SHIFT + M**. The global
 widget visibility and recording rules also apply to the tray and its tab.
 
-The lower-right **WEATHER / MARKETS** tray follows the same peek, hover and click
-behavior, with **SUPER + ALT + W** as its configurable shortcut. Click weather to
+The right-center **WEATHER / MARKETS** tray opens leftward from a vertical edge
+tab and follows the same peek, hover and click behavior, with **SUPER + ALT + W**
+as its configurable shortcut. Click weather to
 expand its forecast or double-click markets for the full market view. The direct
 **SUPER + SHIFT + W** and **SUPER + SHIFT + G** shortcuts work even before the
 tray has been opened. Weather and market background refreshes pause when both
@@ -198,7 +198,6 @@ automatically using [Kitty’s configuration reload signal](https://sw.kovidgoya
 | `SUPER + T` or `SUPER + SHIFT + T` | Kitty terminal |
 | `SUPER + SHIFT + S` | Screenshot (region) |
 | `SUPER + SHIFT + R` | Start / stop screen recording |
-| `SUPER + SHIFT + K` | **Kill mode** (click a window to kill · `ESC` exits) |
 | `SUPER + SHIFT + L` | Lock screen |
 | `SUPER + D` | Peek desktop (hide windows) |
 
@@ -248,7 +247,7 @@ cyberpunk/
 │  ├─ style/            # cyber.scss and cyber.css
 │  └─ glitch.frag
 │
-├─ scripts/             # launcher, screenshot, screenrecord, overkill, ws, terminal, and other used scripts.             
+├─ scripts/             # launcher, screenshot, screenrecord, ws, terminal, and other used scripts.
 ├─ assets/               # fonts, cursor, icons, kitty, kvantum, hyprbars, and resources
 └─ preview/
 ```
