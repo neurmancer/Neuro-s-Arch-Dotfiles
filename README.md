@@ -25,6 +25,14 @@
 
 ### Shit to-do list
 
+> Shit to do overveiw:
+> Most of the widgets will be simplified without loosing their soul/inspiration,
+> Game HUD view will be removed mostly
+> I'll be making the sound effects on guitar myself lol (current CDPR in-game sound effects are copy-righted)
+> Redesign for widget full-views (except radioport that shit is perfect as it is)
+> CRT/VHS GLSL shader add for retro-futuristic ambiance (togglable) 
+
+
 - [ ] Changing some sound effect
 
 - [ ] UI tweaks
