@@ -11,16 +11,16 @@ export const attentionColors = () => ({
 export const attentionGlow = () => ({ off: 0, low: 0.35, normal: 0.7, strong: 1.2 }[cfgStr("interactionGlow")] ?? 0.7)
 
 export type AttentionState = { hovered: boolean; focused: boolean; selected: boolean }
-export const createAttention = (area: any) => {
+export const createAttention = (area: any, motionEnabled = () => true) => {
     const state: AttentionState = { hovered: false, focused: false, selected: false }
     let value = 0, target = 0, tick = 0, disposed = false
     const stop = () => { if (tick) { area.remove_tick_callback(tick); tick = 0 } }
     const update = () => {
         if (disposed) return
         const next = state.hovered || state.focused || state.selected ? 1 : 0
-        if (next === target && tick && animOn("animInteraction") && area.get_mapped()) return
+        if (next === target && tick && animOn("animInteraction") && motionEnabled() && area.get_mapped()) return
         stop(); target = next
-        if (!animOn("animInteraction") || !area.get_mapped() || value === target) {
+        if (!animOn("animInteraction") || !motionEnabled() || !area.get_mapped() || value === target) {
             value = target; area.queue_draw(); return
         }
         const from = value, start = GLib.get_monotonic_time()
@@ -38,6 +38,7 @@ export const createAttention = (area: any) => {
     return {
         get value() { return value },
         get focused() { return state.focused },
+        refresh: update,
         set(patch: Partial<AttentionState>) {
             if (disposed) return
             if (Object.keys(patch).every(key => state[key] === patch[key])) return
@@ -72,9 +73,9 @@ export const traceAttentionEdge = (ctx: any, points: number[][], amount: number)
     if (amount >= 1) ctx.closePath()
 }
 
-export const drawAttentionEdge = (ctx: any, points: number[][], amount: number, focused = false, importance = 1, scale = 1) => {
+export const drawAttentionEdge = (ctx: any, points: number[][], amount: number, focused = false, importance = 1, scale = 1, glowLevel = attentionGlow()) => {
     const { primary, secondary } = attentionColors()
-    const progress = Math.max(0, Math.min(1, amount)), glow = attentionGlow() * importance
+    const progress = Math.max(0, Math.min(1, amount)), glow = glowLevel * importance
     ctx.save()
     const stroke = (color: number[], alpha: number, width: number, coverage: number) => {
         traceAttentionEdge(ctx, points, coverage)

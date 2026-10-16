@@ -36,6 +36,7 @@ import { AurBarWindow, dismissAurBar, dismissThemeBar, showInstalled } from "./c
 import { AppsMenuWindow, openAppsMenu } from "./components/modules/appsmenu.ts"
 import { PlayerWindow, togglePlayer } from "./components/modules/player.ts"
 import { NowPlayingWindow } from "./components/modules/nowplaying.ts"
+import { toggleDesignPrototype } from "./components/modules/design-prototype.ts"
 
 const SCSS = `${COMPONENTS_DIR}/style/cyber.scss`
 const CSS = GLib.getenv("CYBER_CSS") || `${RUNTIME_DIR}/shell.css`
@@ -302,6 +303,8 @@ App.start({
  // Selection is immediate; acknowledge completion only after all writers.
  applyColors(name).then(applied => reply(applied ? "ok" : "superseded"), () => reply("err"))
  } catch (e) { print(e); reply("err") }
+ } else if (request === "design-prototype") {
+ try { toggleDesignPrototype(); reply("ok") } catch (e) { print(e); reply("err") }
  } else if (request === "launcher") {
  execAsync(["sh", "-c", "rofi -show drun || rofi -show run"]).catch(print)
  reply("ok")
