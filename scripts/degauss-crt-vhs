@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Briefly apply the magnetic-degaussing shader, then restore the saved state.
+set -euo pipefail
+
+theme_dir="${CYBER_DIR:-$HOME/.config/hypr/themes/cyberpunk}"
+shader="$theme_dir/shaders/neuros-degauss.frag"
+
+if ! command -v hyprctl >/dev/null 2>&1; then
+    printf 'Degaussing requires a running Hyprland session.\n' >&2
+    exit 1
+fi
+if [ ! -r "$shader" ]; then
+    printf 'Degaussing shader is missing: %s\n' "$shader" >&2
+    exit 1
+fi
+
+hyprctl keyword decoration:screen_shader "$shader"
+sleep 0.65
+hyprctl reload

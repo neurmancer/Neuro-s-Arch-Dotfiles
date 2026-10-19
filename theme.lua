@@ -19,6 +19,14 @@ if cfgf then
         ucfg = res
     end
 end
+-- Kept in user configuration rather than the checkout so the shader survives
+-- updates and a Hyprland reload faithfully restores its last selected state.
+local crt_vhs = false
+local crt_config = loadfile(user_dir .. "/crt-vhs.lua")
+if crt_config then
+    local ok, enabled = pcall(crt_config)
+    crt_vhs = ok and enabled == true
+end
 local anim_master = ucfg["anim"] ~= false
 local anim_workspace = anim_master and ucfg["animWorkspace"] == true
 local wallpapers_path = os.getenv("HOME") .. "/Pictures/Wallpapers"
@@ -141,6 +149,11 @@ hl.config({
         -- time someone edits a keybind, theres a button in the modal for that
         disable_autoreload = true,
     },
+    -- Animated screen shaders must redraw every frame. Restore Hyprland's
+    -- regular damage tracking whenever the CRT/VHS effect is switched off.
+    debug = {
+        damage_tracking = crt_vhs and 0 or 2,
+    },
     general = {
         border_size = border_size,
         gaps_in  = 12,
@@ -177,7 +190,7 @@ hl.config({
             passes = 1,
             noise = 0.04,
         },
-        screen_shader = "",
+        screen_shader = crt_vhs and (cyberpunk .. "/shaders/neuros-crt-vhs.frag") or "",
     },
 })
 

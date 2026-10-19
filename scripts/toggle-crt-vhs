@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Persist the effect choice outside the checkout so updates keep it intact.
+set -euo pipefail
+
+config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+theme_dir="${CYBER_DIR:-$HOME/.config/hypr/themes/cyberpunk}"
+state_dir="$config_home/cyberarch"
+state_file="$state_dir/crt-vhs.lua"
+
+enabled=false
+if [ -r "$state_file" ] && grep -Eq '^[[:space:]]*return[[:space:]]+true[[:space:]]*$' "$state_file"; then
+    enabled=true
+fi
+
+if [ "$enabled" = true ]; then
+    next=false
+else
+    next=true
+fi
+
+mkdir -p "$state_dir"
+temporary="$(mktemp "$state_dir/.crt-vhs.lua.XXXXXX")"
+printf '%s\n' "-- Managed by Neuro's CRT/VHS toggle." "return $next" > "$temporary"
+mv -f "$temporary" "$state_file"
+
+if command -v hyprctl >/dev/null 2>&1; then
+    hyprctl reload
+    # A rare startup quirk: switching a CRT on may trip its degaussing coil.
+    # Run it after the reload so the helper's final reload restores this state.
+    if [ "$next" = true ] && [ $((RANDOM % 5)) -eq 0 ]; then
+        "$theme_dir/scripts/degauss-crt-vhs"
+    fi
+else
+    printf 'CRT/VHS is now %s. Reload Hyprland to apply it.\n' "$next"
+fi

@@ -38,6 +38,8 @@
 
 - [X] Optional NSD™ color themes
 
+- [X] Toggleable CRT/VHS desktop shader
+
 - [ ] unskippable scope-creeep driven development
 
 - [ ] Fish is cool but I might return to bash as the default shell
@@ -149,6 +151,27 @@ Release status and remaining desktop validation: [reliability audit](RELIABILITY
 
 The theme modifier is **`$themeMod = SUPER + SHIFT`**. You can change it on Theme Settings > Keybinds (or change it at the top of `config/keybinds.lua`). 
 Open the full cheat-sheet with all keybinds anytime with **`SUPER+SHIFT+H`**.
+
+### CRT / VHS effect
+
+Press **`SUPER + ALT + V`** to toggle the CRT/VHS compositor effect. It is off
+by default and its selection survives theme updates and Hyprland reloads. The
+shader applies to the entire monitor output, including the HUD; it adds a mild
+curved-tube vignette, scanlines, RGB separation, phosphor grille, and VHS
+tracking bands. The grain and tracking drift slowly across the screen. This
+requires redraw-on-every-frame while the effect is enabled, so it has a higher
+GPU cost than the normal desktop.
+
+For a quick magnetic coil burst, press **`SUPER + ALT + G`**. It temporarily
+applies a stronger radial distortion and RGB separation, then restores the
+effect state you had before. Enabling CRT/VHS also has a 20% chance to trigger
+the burst for a little retro hardware mischief.
+
+To enable it without the keybind, run:
+
+```bash
+~/.config/hypr/themes/cyberpunk/scripts/toggle-crt-vhs
+```
 
 ### HUD & widgets
 
@@ -265,6 +288,10 @@ cyberpunk/
 ├─ config/
 │  ├─ city.json                 #  Saved location (starts by default in London,UK)
 │  └─ keybinds.ts            # Keybinds for theme
+│
+├─ shaders/
+│  └─ neuros-crt-vhs.frag    # Hyprland CRT/VHS post-processing shader
+│  └─ neuros-degauss.frag    # Short-lived magnetic degaussing burst
 │
 ├─ components/
 │  ├─ modules/          # The widgets and main components of the theme HD

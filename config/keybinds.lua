@@ -232,6 +232,8 @@ CD.actions = {
     { id="hud.widgets", label="SHOW / HIDE WIDGETS", mod="SUPER + ALT", key="H", group="deck", run=sock("toggle-widgets") },
     { id="hud.palettenext", label="NEXT PALETTE", mod="SUPER + ALT", key="P", group="deck", run=sock("palette-next") },
     { id="hud.paletteprev", label="PREVIOUS PALETTE", mod="SUPER + ALT + SHIFT", key="P", group="deck", run=sock("palette-prev") },
+    { id="fx.crt_vhs",     label="TOGGLE CRT / VHS",     mod="SUPER + ALT", key="V", group="deck", run=app("scripts/toggle-crt-vhs") },
+    { id="fx.degauss",     label="DEGAUSS CRT",           mod="SUPER + ALT", key="G", group="deck", run=app("scripts/degauss-crt-vhs") },
     { id="hud.toggle",   label="TOGGLE HUD",          mod="@themeMod", key="Z",         group="deck", run=sock("toggle-hud") },
     { id="hud.vol",      label="VOLUME",              mod="@themeMod", key="V",         group="deck", run=sock("modal vol") },
     { id="hud.brt",      label="BRIGHTNESS",          mod="@themeMod", key="I",         group="deck", run=sock("modal brt") },
